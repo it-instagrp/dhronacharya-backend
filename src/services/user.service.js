@@ -1,5 +1,6 @@
-import sequelize, { DataTypes } from '../config/database';
-const User = require('../models/user')(sequelize, DataTypes);
+import model from '../models/index.js';
+
+const {User} = model;
 
 //get all users
 export const getAllUsers = async () => {

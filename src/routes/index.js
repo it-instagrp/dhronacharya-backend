@@ -1,5 +1,9 @@
 import express from 'express';
 const router = express.Router();
+
+/**** Route Imports ****/
+import userRoutes from './user.route.js';
+
 /**
  * Function contains Application routes
  *
