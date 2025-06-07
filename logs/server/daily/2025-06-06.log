@@ -1,0 +1,84 @@
+info: Connected to the database. {"timestamp":"2025-06-06T05:43:53.064Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T05:43:53.149Z"}
+error: Signup Error: null value in column "name" of relation "tutors" violates not-null constraint {"name":"SequelizeDatabaseError","original":{"code":"23502","column":"name","detail":"Failing row contains (null, 2025-06-06 05:55:04.496+00, 2025-06-06 05:55:04.496+00, 8c0e5668-2e2d-483c-84f5-3f14ab46eb36, {\"Physics\",\"Chemistry\"}, {\"10th\",\"12th\"}, null, null, pending).","file":"execMain.c","length":349,"line":"1982","name":"error","parameters":["8c0e5668-2e2d-483c-84f5-3f14ab46eb36",null,["Physics","Chemistry"],["10th","12th"],null,null,"pending","2025-06-06 05:55:04.496 +00:00","2025-06-06 05:55:04.496 +00:00"],"routine":"ExecConstraints","schema":"public","severity":"ERROR","sql":"INSERT INTO \"tutors\" (\"user_id\",\"name\",\"subjects\",\"classes\",\"degrees\",\"introduction_video\",\"profile_status\",\"created_at\",\"updated_at\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING \"user_id\",\"name\",\"subjects\",\"classes\",\"degrees\",\"introduction_video\",\"profile_status\",\"created_at\",\"updated_at\",\"created_at\",\"updated_at\";","table":"tutors"},"parameters":["8c0e5668-2e2d-483c-84f5-3f14ab46eb36",null,["Physics","Chemistry"],["10th","12th"],null,null,"pending","2025-06-06 05:55:04.496 +00:00","2025-06-06 05:55:04.496 +00:00"],"parent":{"code":"23502","column":"name","detail":"Failing row contains (null, 2025-06-06 05:55:04.496+00, 2025-06-06 05:55:04.496+00, 8c0e5668-2e2d-483c-84f5-3f14ab46eb36, {\"Physics\",\"Chemistry\"}, {\"10th\",\"12th\"}, null, null, pending).","file":"execMain.c","length":349,"line":"1982","name":"error","parameters":["8c0e5668-2e2d-483c-84f5-3f14ab46eb36",null,["Physics","Chemistry"],["10th","12th"],null,null,"pending","2025-06-06 05:55:04.496 +00:00","2025-06-06 05:55:04.496 +00:00"],"routine":"ExecConstraints","schema":"public","severity":"ERROR","sql":"INSERT INTO \"tutors\" (\"user_id\",\"name\",\"subjects\",\"classes\",\"degrees\",\"introduction_video\",\"profile_status\",\"created_at\",\"updated_at\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING \"user_id\",\"name\",\"subjects\",\"classes\",\"degrees\",\"introduction_video\",\"profile_status\",\"created_at\",\"updated_at\",\"created_at\",\"updated_at\";","table":"tutors"},"sql":"INSERT INTO \"tutors\" (\"user_id\",\"name\",\"subjects\",\"classes\",\"degrees\",\"introduction_video\",\"profile_status\",\"created_at\",\"updated_at\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING \"user_id\",\"name\",\"subjects\",\"classes\",\"degrees\",\"introduction_video\",\"profile_status\",\"created_at\",\"updated_at\",\"created_at\",\"updated_at\";","stack":"Error\n    at Query.run (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\dialects\\postgres\\query.js:50:25)\n    at E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\sequelize.js:315:28\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async PostgresQueryInterface.insert (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\dialects\\abstract\\query-interface.js:308:21)\n    at async model.save (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\model.js:2490:35)\n    at async Tutor.create (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\model.js:1362:12)\n    at async signup (file:///E:/Drona-project/dhronacharya-backend/src/controllers/auth.controller.js:98:7)","timestamp":"2025-06-06T05:55:04.518Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T06:34:37.976Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T06:34:38.026Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T06:35:55.174Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T06:35:55.203Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T06:36:08.704Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T06:36:08.745Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T06:38:29.504Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T06:38:29.555Z"}
+error: Signup error: Email sending failed {"stack":"Error: Email sending failed\n    at sendEmail (file:///E:/Drona-project/dhronacharya-backend/src/utils/email.js:30:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async signup (file:///E:/Drona-project/dhronacharya-backend/src/controllers/auth.controller.js:82:5)","timestamp":"2025-06-06T07:16:53.946Z"}
+error: Signup error: Email sending failed {"stack":"Error: Email sending failed\n    at sendEmail (file:///E:/Drona-project/dhronacharya-backend/src/utils/email.js:30:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async signup (file:///E:/Drona-project/dhronacharya-backend/src/controllers/auth.controller.js:82:5)","timestamp":"2025-06-06T07:20:45.371Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T07:42:28.814Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T07:42:28.840Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T07:42:56.059Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T07:42:56.088Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T07:42:59.507Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T07:42:59.541Z"}
+error: Signup error: null value in column "name" of relation "students" violates not-null constraint {"name":"SequelizeDatabaseError","original":{"code":"23502","column":"name","detail":"Failing row contains (null, 2025-06-06 08:06:28.34+00, 2025-06-06 08:06:28.34+00, d9ec9665-fd5e-4790-89ff-4242596a17da, 10th, {\"Physics\",\"Chemistry\"}).","file":"execMain.c","length":319,"line":"1982","name":"error","parameters":["d9ec9665-fd5e-4790-89ff-4242596a17da","10th",["Physics","Chemistry"],"2025-06-06 08:06:28.340 +00:00","2025-06-06 08:06:28.340 +00:00"],"routine":"ExecConstraints","schema":"public","severity":"ERROR","sql":"INSERT INTO \"students\" (\"user_id\",\"class\",\"subjects\",\"created_at\",\"updated_at\") VALUES ($1,$2,$3,$4,$5) RETURNING \"user_id\",\"name\",\"class\",\"subjects\",\"created_at\",\"updated_at\",\"created_at\",\"updated_at\";","table":"students"},"parameters":["d9ec9665-fd5e-4790-89ff-4242596a17da","10th",["Physics","Chemistry"],"2025-06-06 08:06:28.340 +00:00","2025-06-06 08:06:28.340 +00:00"],"parent":{"code":"23502","column":"name","detail":"Failing row contains (null, 2025-06-06 08:06:28.34+00, 2025-06-06 08:06:28.34+00, d9ec9665-fd5e-4790-89ff-4242596a17da, 10th, {\"Physics\",\"Chemistry\"}).","file":"execMain.c","length":319,"line":"1982","name":"error","parameters":["d9ec9665-fd5e-4790-89ff-4242596a17da","10th",["Physics","Chemistry"],"2025-06-06 08:06:28.340 +00:00","2025-06-06 08:06:28.340 +00:00"],"routine":"ExecConstraints","schema":"public","severity":"ERROR","sql":"INSERT INTO \"students\" (\"user_id\",\"class\",\"subjects\",\"created_at\",\"updated_at\") VALUES ($1,$2,$3,$4,$5) RETURNING \"user_id\",\"name\",\"class\",\"subjects\",\"created_at\",\"updated_at\",\"created_at\",\"updated_at\";","table":"students"},"sql":"INSERT INTO \"students\" (\"user_id\",\"class\",\"subjects\",\"created_at\",\"updated_at\") VALUES ($1,$2,$3,$4,$5) RETURNING \"user_id\",\"name\",\"class\",\"subjects\",\"created_at\",\"updated_at\",\"created_at\",\"updated_at\";","stack":"Error\n    at Query.run (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\dialects\\postgres\\query.js:50:25)\n    at E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\sequelize.js:315:28\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n    at async PostgresQueryInterface.insert (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\dialects\\abstract\\query-interface.js:308:21)\n    at async model.save (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\model.js:2490:35)\n    at async Student.create (E:\\Drona-project\\dhronacharya-backend\\node_modules\\sequelize\\lib\\model.js:1362:12)\n    at async signup (file:///E:/Drona-project/dhronacharya-backend/src/controllers/auth.controller.js:74:7)","timestamp":"2025-06-06T08:06:28.400Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T09:41:38.548Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T09:41:38.584Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:35:00.968Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:35:01.010Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:35:05.881Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:35:05.992Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:35:39.241Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:35:39.282Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:35:46.409Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:35:46.460Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:36:06.979Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:36:07.037Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:36:11.164Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:36:11.202Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:37:00.756Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:37:00.794Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:37:06.887Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:37:06.940Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:37:28.109Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:37:28.148Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:37:31.717Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:37:31.765Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:38:37.756Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:38:37.815Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:38:56.803Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:38:56.875Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:40:49.795Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:40:49.866Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:41:45.732Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:41:45.811Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:41:54.671Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:41:54.753Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:42:26.957Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:42:27.026Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:42:31.804Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:42:31.903Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:45:55.369Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:46:31.490Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:46:31.595Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:47:25.796Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:47:25.854Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:47:35.736Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:47:35.792Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:48:02.293Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:48:02.340Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:48:11.583Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:48:11.638Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:49:07.379Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:49:07.441Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:49:16.357Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:49:16.419Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:49:36.154Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:49:36.232Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:49:42.604Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:49:42.664Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T10:55:43.520Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T10:55:43.564Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T11:00:23.112Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T11:01:40.472Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T11:01:57.727Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T11:02:08.639Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T11:02:08.692Z"}
+info: Connected to the database. {"timestamp":"2025-06-06T11:02:53.218Z"}
+info: ✅ Server started at http://localhost:3000/api/ {"timestamp":"2025-06-06T11:02:53.279Z"}
