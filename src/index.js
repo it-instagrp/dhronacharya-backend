@@ -1,5 +1,4 @@
 import dotenv from 'dotenv';
-import paymentRoutes from './routes/payment.route.js';
 dotenv.config();
 
 import express from 'express';
