@@ -1,4 +1,5 @@
 console.log('--- database.js file is being loaded ---');
+import pg from 'pg';
 import Sequelize from 'sequelize';
 import logger from '../config/logger.js';
 
