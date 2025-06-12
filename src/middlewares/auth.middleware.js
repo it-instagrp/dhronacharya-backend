@@ -12,7 +12,9 @@ export const authenticate = async (req, res, next) => {
     // Allow public routes without authentication
     const openRoutes = [
       { method: 'GET', path: '/api/' },
-      { method: 'POST', path: '/api/query' }
+      { method: 'POST', path: '/api/query' },
+      { method: 'POST', path: '/api/auth/signup' },
+      { method: 'POST', path: '/api/auth/login' },
     ];
 
     const isPublic = openRoutes.some(
