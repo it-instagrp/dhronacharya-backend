@@ -1,5 +1,5 @@
 {
-  "name": "express-starter",
+  "name": "Dronacharya",
   "version": "0.0.1",
   "description": "",
   "type": "module",
@@ -14,13 +14,13 @@
     "lint": "eslint . --ext .js",
     "lint-fix": "eslint . --ext .js --fix"
   },
-  "author": "Tolustar",
+  "author": "Mustkeem Baraskar",
   "license": "MIT",
   "dependencies": {
     "@hapi/joi": "^17.1.1",
     "@sendgrid/mail": "^7.2.5",
     "cors": "^2.8.5",
-    "dotenv": "^8.2.0",
+    "dotenv": "^16.5.0",
     "express": "^4.17.1",
     "helmet": "^4.1.0",
     "http-status-codes": "^2.1.2",

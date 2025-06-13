@@ -38,3 +38,21 @@ This file is being treated as an ES module because it has a '.js' file extension
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {"date":"Mon Jun 02 2025 11:59:46 GMT+0530 (India Standard Time)","error":{},"exception":true,"os":{"loadavg":[0,0,0],"uptime":668359.968},"process":{"argv":["node","D:\\Dhronacharya\\Code\\dhronacharya-backend\\src\\index.js"],"cwd":"D:\\Dhronacharya\\Code\\dhronacharya-backend","execPath":"C:\\nvm4w\\nodejs\\node.exe","gid":null,"memoryUsage":{"arrayBuffers":93764,"external":3321662,"heapTotal":62263296,"heapUsed":35681952,"rss":102014976},"pid":16764,"uid":null,"version":"v22.14.0"},"stack":"ReferenceError: require is not defined in ES module scope, you can use import instead\nThis file is being treated as an ES module because it has a '.js' file extension and 'D:\\Dhronacharya\\Code\\dhronacharya-backend\\package.json' contains \"type\": \"module\". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.\n    at file:///D:/Dhronacharya/Code/dhronacharya-backend/src/services/user.service.js:2:14\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)","timestamp":"2025-06-02T06:29:46.132Z","trace":[{"column":null,"file":null,"function":null,"line":null,"method":null,"native":false},{"column":14,"file":"file:///D:/Dhronacharya/Code/dhronacharya-backend/src/services/user.service.js","function":null,"line":2,"method":null,"native":false},{"column":5,"file":"node:internal/process/task_queues","function":"process.processTicksAndRejections","line":105,"method":"processTicksAndRejections","native":false}]}
 info: Connected to the database. {"timestamp":"2025-06-02T06:31:06.209Z"}
 info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-02T06:31:06.252Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T06:01:48.837Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T06:01:48.871Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T06:03:29.382Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T06:03:29.409Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T06:04:37.648Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T06:04:37.674Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T06:05:36.699Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T06:05:36.722Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T06:24:01.857Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T06:24:01.886Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T15:47:53.308Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T15:47:53.358Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T15:53:34.330Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T15:53:34.354Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T15:53:51.958Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T15:53:51.985Z"}
+info: Connected to the database. {"timestamp":"2025-06-05T18:04:06.084Z"}
+info: Server started at http://localhost:3000/api/ {"timestamp":"2025-06-05T18:04:06.108Z"}
