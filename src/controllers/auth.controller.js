@@ -1,14 +1,15 @@
-// src/controllers/auth.controller.js
 import HttpStatus from 'http-status-codes';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import db from '../models/index.js';
 import logger from '../config/logger.js';
-import { sendEmail } from '../utils/email.js'; // You must create this utility
+import { sendEmail } from '../utils/email.js';
 
-const { User, Admin, Tutor, Student, Sequelize } = db;
+const { User, Admin, Tutor, Student, Location } = db;
+import sequelize from '../config/database.js';
 
+// 🔐 Generate JWT Token
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role },
@@ -17,12 +18,12 @@ const generateToken = (user) => {
   );
 };
 
-// 🔐 Generate OTP
+// 🔐 Generate 6-digit OTP
 const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// 📩 Signup with OTP
+// ✅ Signup + Send OTP
 export const signup = async (req, res) => {
   const {
     email, mobile_number, password, role,
@@ -37,7 +38,7 @@ export const signup = async (req, res) => {
 
     const existingUser = await User.findOne({
       where: {
-        [Sequelize.Op.or]: [{ email }, { mobile_number }]
+        [sequelize.Sequelize.Op.or]: [{ email }, { mobile_number }]
       }
     });
     if (existingUser) {
@@ -80,7 +81,6 @@ export const signup = async (req, res) => {
     }
 
     await sendEmail(email, 'OTP Verification', `Your OTP is ${otp}`);
-
     return res.status(HttpStatus.CREATED).json({
       message: 'User created. OTP sent to email.',
       user_id: user.id
@@ -91,16 +91,20 @@ export const signup = async (req, res) => {
   }
 };
 
-// ✅ Verify OTP
+// ✅ Verify Signup OTP
 export const verifyOTP = async (req, res) => {
   const { user_id, otp } = req.body;
 
   try {
-    const user = await User.findByPk(user_id);
+    const user = await User.findByPk(user_id, {
+      include: [
+        { model: Tutor, include: [Location] },
+        { model: Student, include: [Location] }
+      ]
+    });
     if (!user) return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
 
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-
     if (user.otp_secret !== otpHash || new Date() > user.otp_expires_at) {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
     }
@@ -111,14 +115,24 @@ export const verifyOTP = async (req, res) => {
     await user.save();
 
     const token = generateToken(user);
-    return res.status(HttpStatus.OK).json({ message: 'OTP verified', token });
+    
+    // Prepare user data for response
+    const userData = {
+      id: user.id,
+      email: user.email,
+      mobile_number: user.mobile_number,
+      role: user.role,
+      profile: user.Tutor || user.Student || null
+    };
+
+    return res.status(HttpStatus.OK).json({ message: 'OTP verified', token, user: userData });
   } catch (err) {
     logger.error('OTP Verification Error:', err);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'OTP verification failed' });
   }
 };
 
-// 🔐 Forgot Password - Send OTP
+// ✅ Forgot Password - Send OTP
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
@@ -134,7 +148,6 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     await sendEmail(email, 'Reset Password OTP', `Your OTP is ${otp}`);
-
     return res.status(HttpStatus.OK).json({ message: 'OTP sent to email' });
   } catch (err) {
     logger.error('Forgot Password Error:', err);
@@ -142,7 +155,7 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// 🔒 Reset Password (after OTP)
+// ✅ Reset Password (after OTP)
 export const resetPassword = async (req, res) => {
   const { email, otp, new_password } = req.body;
 
@@ -151,7 +164,6 @@ export const resetPassword = async (req, res) => {
     if (!user) return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
 
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-
     if (user.otp_secret !== otpHash || new Date() > user.otp_expires_at) {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
     }
@@ -168,7 +180,7 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// 🔐 Change Password (Authenticated user)
+// 🔒 Change Password (Authenticated)
 export const changePassword = async (req, res) => {
   const { old_password, new_password } = req.body;
   const userId = req.user.id;
@@ -189,7 +201,7 @@ export const changePassword = async (req, res) => {
   }
 };
 
-// 🔑 Login
+// 🔑 Login with email or mobile + password
 export const login = async (req, res) => {
   const { emailOrMobile, password } = req.body;
 
@@ -200,7 +212,11 @@ export const login = async (req, res) => {
           { email: emailOrMobile },
           { mobile_number: emailOrMobile }
         ]
-      }
+      },
+      include: [
+        { model: Tutor, include: [Location] },
+        { model: Student, include: [Location] }
+      ]
     });
 
     if (!user || !user.is_active) {
@@ -213,9 +229,94 @@ export const login = async (req, res) => {
     }
 
     const token = generateToken(user);
-    return res.status(HttpStatus.OK).json({ token, user });
+    
+    // Prepare user data for response
+    const userData = {
+      id: user.id,
+      email: user.email,
+      mobile_number: user.mobile_number,
+      role: user.role,
+      profile: user.Tutor || user.Student || null
+    };
+
+    return res.status(HttpStatus.OK).json({ token, user: userData });
   } catch (err) {
     logger.error('Login Error:', err);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Login failed' });
+  }
+};
+
+// 📱 Send OTP for Mobile Login
+export const sendLoginOTP = async (req, res) => {
+  const { mobile_number } = req.body;
+
+  try {
+    const user = await User.findOne({ where: { mobile_number } });
+
+    if (!user || !user.is_active) {
+      return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found or not active' });
+    }
+
+    const otp = generateOTP();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+    user.otp_secret = otpHash;
+    user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await sendEmail(user.email, 'Login OTP', `Your OTP is ${otp}`);
+    return res.status(HttpStatus.OK).json({
+      message: 'OTP sent to registered email',
+      user_id: user.id
+    });
+  } catch (err) {
+    logger.error('Send Login OTP Error:', err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Failed to send OTP' });
+  }
+};
+
+// ✅ Verify Mobile OTP Login
+export const verifyLoginOTP = async (req, res) => {
+  const { user_id, otp } = req.body;
+
+  try {
+    const user = await User.findByPk(user_id, {
+      include: [
+        { model: Tutor, include: [Location] },
+        { model: Student, include: [Location] }
+      ]
+    });
+    if (!user) {
+      return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
+    }
+
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.otp_secret !== otpHash || new Date() > user.otp_expires_at) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
+    }
+
+    user.otp_secret = null;
+    user.otp_expires_at = null;
+    await user.save();
+
+    const token = generateToken(user);
+    
+    // Prepare user data for response
+    const userData = {
+      id: user.id,
+      email: user.email,
+      mobile_number: user.mobile_number,
+      role: user.role,
+      profile: user.Tutor || user.Student || null
+    };
+
+    return res.status(HttpStatus.OK).json({
+      message: 'OTP verified and logged in',
+      token,
+      user: userData
+    });
+  } catch (err) {
+    logger.error('Verify Login OTP Error:', err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'OTP verification failed' });
   }
 };

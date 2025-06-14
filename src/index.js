@@ -53,6 +53,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import couponRoutes from './routes/coupon.route.js';
 import notificationRoutes from './routes/notification.route.js';
+import paymentRoutes from './routes/payment.route.js';
+import locationRoutes from './routes/locationRoutes.js';
 
 
 import { authenticate } from './middlewares/auth.middleware.js';
@@ -100,8 +102,10 @@ app.listen(port, () => {
 });
 
 
+app.use('/api/payments', paymentRoutes);
 
 router.use('/coupons', couponRoutes);
 router.use('/notifications', notificationRoutes);
+app.use('/api/locations', locationRoutes);
 
 export default app;

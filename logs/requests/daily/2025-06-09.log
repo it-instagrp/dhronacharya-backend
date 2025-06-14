@@ -1,0 +1,2 @@
+info: ::1 - - [09/Jun/2025:08:18:26 +0000] "POST /api/auth/signup HTTP/1.1" 201 95 "-" "PostmanRuntime/7.44.0"
+
