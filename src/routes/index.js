@@ -4,6 +4,7 @@ const router = express.Router();
 /**** Route Imports ****/
 import userRoutes from './user.route.js';
 import authRoutes from './auth.route.js';
+import profileRoutes from './profileRoutes.js';
 
 /**
  * Function contains Application routes
@@ -17,6 +18,7 @@ const routes = () => {
   
   router.use('/auth', authRoutes);
   router.use('/users', userRoutes);
+  router.use('/profile', profileRoutes);
 
   return router;
 };

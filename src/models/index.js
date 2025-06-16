@@ -1,5 +1,5 @@
 // src/models/index.js
-import { Sequelize } from 'sequelize';
+import sequelize from '../config/database.js';
 import User from './user.js';
 import Admin from './admin.js';
 import Tutor from './tutor.js';
@@ -9,21 +9,10 @@ import Payment from './payment.js';
 import UserSubscription from './userSubscription.js';
 import Coupon from './coupon.js';
 import Notification from './notification.js';
+import Location from './Location.js';
 
-
-const sequelize = new Sequelize(
-  process.env.DATABASE,
-  process.env.USERNAME,
-  process.env.PASSWORD,
-  {
-    host: process.env.HOST,
-    dialect: 'postgres',
-    logging: false,
-  }
-);
 
 const db = {};
-db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
 db.User = User;
@@ -68,4 +57,12 @@ db.User.hasMany(db.Notification, { foreignKey: 'user_id' });
 db.Notification.belongsTo(db.User, { foreignKey: 'user_id' });
 
 db.Coupon; // standalone model, use as needed
+
+db.Location = Location;
+
+db.Tutor.belongsTo(db.Location, { foreignKey: 'location_id' });
+db.Student.belongsTo(db.Location, { foreignKey: 'location_id' });
+
+sequelize.sync().then(()=>console.log("Model Synced"));
+
 export default db;

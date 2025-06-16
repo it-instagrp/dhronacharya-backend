@@ -39,6 +39,15 @@ const Tutor = sequelize.define('Tutor', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
+location_id: {
+  type: DataTypes.UUID,
+  allowNull: true,
+  references: {
+    model: 'locations',
+    key: 'id'
+  }
+}
+,
 }, {
   tableName: 'tutors',
   timestamps: true,

@@ -27,6 +27,14 @@ const Student = sequelize.define('Student', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
+location_id: {
+  type: DataTypes.UUID,
+  allowNull: true,
+  references: {
+    model: 'locations',
+    key: 'id'
+  }
+},
 }, {
   tableName: 'students',
   timestamps: true,

@@ -1,0 +1,10 @@
+info: ::1 - - [10/Jun/2025:08:13:26 +0000] "GET /api/payments/create-orde HTTP/1.1" 401 56 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+info: ::1 - - [10/Jun/2025:08:13:26 +0000] "GET /favicon.ico HTTP/1.1" 401 56 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+info: ::1 - - [10/Jun/2025:08:15:19 +0000] "GET /api/notifications HTTP/1.1" 401 56 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [10/Jun/2025:08:16:05 +0000] "GET /api/payments/create-order HTTP/1.1" 401 56 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [10/Jun/2025:08:16:29 +0000] "GET /api/payments/create-order HTTP/1.1" 401 56 "-" "PostmanRuntime/7.44.0"
+

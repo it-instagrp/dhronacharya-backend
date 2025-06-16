@@ -38,7 +38,4 @@ app.use(notFound);
 app.listen(port, () => {
   logger.info(`Server started at ${host}:${port}/api/`);
 });
-
-
-
 export default app;
