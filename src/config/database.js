@@ -1,6 +1,6 @@
 console.log('--- database.js file is being loaded ---');
 import pg from 'pg';
-import Sequelize, { DataTypes } from 'sequelize';
+import Sequelize from 'sequelize';
 import logger from '../config/logger.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
