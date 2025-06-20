@@ -10,6 +10,7 @@ import UserSubscription from './userSubscription.js';
 import Coupon from './coupon.js';
 import Notification from './notification.js';
 import Location from './Location.js';
+import Enquiry from './enquiry.js';
 
 
 const db = {};
@@ -62,6 +63,13 @@ db.Location = Location;
 
 db.Tutor.belongsTo(db.Location, { foreignKey: 'location_id' });
 db.Student.belongsTo(db.Location, { foreignKey: 'location_id' });
+db.Enquiry = Enquiry;
+
+db.User.hasMany(Enquiry, { foreignKey: 'sender_id', as: 'SentEnquiries' });
+db.User.hasMany(Enquiry, { foreignKey: 'receiver_id', as: 'ReceivedEnquiries' });
+
+Enquiry.belongsTo(db.User, { foreignKey: 'sender_id', as: 'Sender' });
+Enquiry.belongsTo(db.User, { foreignKey: 'receiver_id', as: 'Receiver' });
 
 sequelize.sync().then(()=>console.log("Model Synced"));
 
