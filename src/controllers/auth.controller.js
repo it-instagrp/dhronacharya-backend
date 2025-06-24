@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import db from '../models/index.js';
 import logger from '../config/logger.js';
 import { sendEmail } from '../utils/email.js';
+import { sendSMS } from '../utils/sms.js';
 
 const { User, Admin, Tutor, Student, Location } = db;
 import sequelize from '../config/database.js';
@@ -81,8 +82,10 @@ export const signup = async (req, res) => {
     }
 
     await sendEmail(email, 'OTP Verification', `Your OTP is ${otp}`);
+    await sendSMS(mobile_number, `Your OTP is ${otp}`);
+
     return res.status(HttpStatus.CREATED).json({
-      message: 'User created. OTP sent to email.',
+      message: 'User created. OTP sent to email and SMS.',
       user_id: user.id
     });
   } catch (err) {
@@ -115,8 +118,6 @@ export const verifyOTP = async (req, res) => {
     await user.save();
 
     const token = generateToken(user);
-    
-    // Prepare user data for response
     const userData = {
       id: user.id,
       email: user.email,
@@ -148,7 +149,9 @@ export const forgotPassword = async (req, res) => {
     await user.save();
 
     await sendEmail(email, 'Reset Password OTP', `Your OTP is ${otp}`);
-    return res.status(HttpStatus.OK).json({ message: 'OTP sent to email' });
+    await sendSMS(user.mobile_number, `Your OTP is ${otp}`);
+
+    return res.status(HttpStatus.OK).json({ message: 'OTP sent to email and SMS' });
   } catch (err) {
     logger.error('Forgot Password Error:', err);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Error sending OTP' });
@@ -208,7 +211,7 @@ export const login = async (req, res) => {
   try {
     const user = await User.findOne({
       where: {
-        [Sequelize.Op.or]: [
+        [sequelize.Sequelize.Op.or]: [
           { email: emailOrMobile },
           { mobile_number: emailOrMobile }
         ]
@@ -229,8 +232,6 @@ export const login = async (req, res) => {
     }
 
     const token = generateToken(user);
-    
-    // Prepare user data for response
     const userData = {
       id: user.id,
       email: user.email,
@@ -265,8 +266,10 @@ export const sendLoginOTP = async (req, res) => {
     await user.save();
 
     await sendEmail(user.email, 'Login OTP', `Your OTP is ${otp}`);
+    await sendSMS(user.mobile_number, `Your OTP is ${otp}`);
+
     return res.status(HttpStatus.OK).json({
-      message: 'OTP sent to registered email',
+      message: 'OTP sent to registered email and SMS',
       user_id: user.id
     });
   } catch (err) {
@@ -300,8 +303,6 @@ export const verifyLoginOTP = async (req, res) => {
     await user.save();
 
     const token = generateToken(user);
-    
-    // Prepare user data for response
     const userData = {
       id: user.id,
       email: user.email,

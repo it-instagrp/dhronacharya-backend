@@ -1,5 +1,5 @@
 {
-  "name": "express-starter",
+  "name": "Dronacharya",
   "version": "0.0.1",
   "description": "",
   "type": "module",
@@ -9,7 +9,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
-  "author": "Tolustar",
+  "author": "Mustkeem Baraskar",
   "license": "MIT",
   "dependencies": {
     "@hapi/joi": "^17.1.1",

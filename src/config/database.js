@@ -1,12 +1,14 @@
 console.log('--- database.js file is being loaded ---');
 import pg from 'pg';
 import Sequelize from 'sequelize';
+const { DataTypes } = Sequelize;
+
 import logger from '../config/logger.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 let DATABASE = process.env.DATABASE;
-let USER_NAME = "master";
+let USER_NAME = "avnadmin";
 let PASSWORD = process.env.PASSWORD;
 let HOST = process.env.HOST;
 let PORT = process.env.PORT;
@@ -14,7 +16,7 @@ let DIALECT = process.env.DIALECT;
 
 if (process.env.NODE_ENV === 'test') {
   DATABASE = process.env.DATABASE_TEST;
-  USER_NAME = "master";
+  USER_NAME = "avnadmin";
   PASSWORD = process.env.PASSWORD_TEST;
   HOST = process.env.HOST_TEST;
   PORT = process.env.PORT_TEST;
@@ -23,7 +25,29 @@ if (process.env.NODE_ENV === 'test') {
 
 console.log("Database Credentials:", { DATABASE, USER_NAME, PASSWORD, HOST, PORT, DIALECT });
 
-const sequelize = new Sequelize(DATABASE, "master", PASSWORD, {
+// const sequelize = new Sequelize(DATABASE, "master", PASSWORD, {
+//   host: HOST,
+//   port: PORT,
+//   dialect: DIALECT,
+//   pool: {
+//     max: 5,
+//     min: 0,
+//     acquire: 30000,
+//     idle: 10000,
+//   },
+//   dialectOptions: process.env.NODE_ENV === 'production' ? {
+//     ssl: {
+//       require: true,
+//       rejectUnauthorized: false,
+//     }
+//   } : {
+//     ssl: {
+//       require: true,
+//       rejectUnauthorized: false,
+//     }
+//   },
+// });
+const sequelize = new Sequelize(DATABASE, "avnadmin", PASSWORD, {
   host: HOST,
   port: PORT,
   dialect: DIALECT,
@@ -33,18 +57,21 @@ const sequelize = new Sequelize(DATABASE, "master", PASSWORD, {
     acquire: 30000,
     idle: 10000,
   },
-  dialectOptions: process.env.NODE_ENV === 'production' ? {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
+  dialectOptions: process.env.NODE_ENV === 'production'
+    ? {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        }
+      }
+    : {
+      ssl: {
+    require: true,
+    rejectUnauthorized: false
+  }
     }
-  } : {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    }
-  },
 });
+
 
 sequelize.authenticate()
   .then(() => {
