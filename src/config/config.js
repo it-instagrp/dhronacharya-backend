@@ -3,7 +3,7 @@ dotenv.config();
 
 module.exports = {
   development: {
-    username: process.env.USERNAME,
+    username: "master",
     password: process.env.PASSWORD,
     database: process.env.DATABASE,
     host: process.env.HOST,
@@ -11,7 +11,7 @@ module.exports = {
     dialect: process.env.DIALECT
   },
   test: {
-    username: process.env.USERNAME_TEST,
+    username: "master",
     password: process.env.PASSWORD_TEST,
     database: process.env.DATABASE_TEST,
     host: process.env.HOST_TEST,
@@ -19,7 +19,7 @@ module.exports = {
     dialect: process.env.DIALECT_TEST
   },
   production: {
-    username: process.env.USERNAME,
+    username: "master",
     password: process.env.PASSWORD,
     database: process.env.DATABASE,
     host: process.env.HOST,

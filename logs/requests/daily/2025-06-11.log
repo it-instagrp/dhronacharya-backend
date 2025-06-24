@@ -1,0 +1,38 @@
+info: ::1 - - [11/Jun/2025:07:50:45 +0000] "POST /api/auth/signup HTTP/1.1" 500 75 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:07:57:02 +0000] "POST /api/auth/signup HTTP/1.1" 409 48 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:07:57:18 +0000] "POST /api/auth/signup HTTP/1.1" 409 48 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:07:57:24 +0000] "POST /api/auth/signup HTTP/1.1" 500 75 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:09:43:52 +0000] "GET /location/autocomplete?q=Pune HTTP/1.1" 401 56 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+info: ::1 - - [11/Jun/2025:09:43:52 +0000] "GET /favicon.ico HTTP/1.1" 401 56 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+info: ::1 - - [11/Jun/2025:11:27:59 +0000] "GET /location/autocomplete?q=Pune HTTP/1.1" 401 72 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+info: ::1 - - [11/Jun/2025:11:27:59 +0000] "GET /favicon.ico HTTP/1.1" 401 72 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+
+info: ::1 - - [11/Jun/2025:11:45:28 +0000] "POST /api/auth/signup HTTP/1.1" 409 48 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:45:45 +0000] "POST /api/auth/signup HTTP/1.1" 500 75 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:46:51 +0000] "POST /api/auth/signup HTTP/1.1" 400 327 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:47:43 +0000] "POST /api/auth/signup HTTP/1.1" 400 174 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:48:18 +0000] "POST /api/auth/signup HTTP/1.1" 409 48 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:48:35 +0000] "POST /api/auth/signup HTTP/1.1" 500 75 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:49:37 +0000] "POST /api/auth/signup HTTP/1.1" 400 226 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:50:10 +0000] "POST /api/auth/signup HTTP/1.1" 400 221 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:11:58:25 +0000] "POST /api/auth/signup HTTP/1.1" 400 221 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:12:08:28 +0000] "POST /api/auth/signup HTTP/1.1" 409 48 "-" "PostmanRuntime/7.44.0"
+
+info: ::1 - - [11/Jun/2025:12:08:42 +0000] "POST /api/auth/signup HTTP/1.1" 500 75 "-" "PostmanRuntime/7.44.0"
+

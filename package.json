@@ -3,22 +3,19 @@
   "version": "0.0.1",
   "description": "",
   "type": "module",
-  "main": "build/index.js",
+  "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon --exec babel-node src/index.js",
-    "build": "rimraf build && babel src --out-dir build",
-    "prestart": "rimraf build && babel src --out-dir build",
-    "start": "node build/index.js",
-    "test": "cross-env NODE_ENV=test mocha --exit --recursive --require @babel/register --timeout=5000 tests/**/*.js",
-    "test:coverage": "cross-env NODE_ENV=test nyc --require @babel/register --reporter lcov --reporter text mocha --exit --recursive --timeout=5000 tests/**/*.js",
-    "lint": "eslint . --ext .js",
-    "lint-fix": "eslint . --ext .js --fix"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   },
   "author": "Mustkeem Baraskar",
   "license": "MIT",
   "dependencies": {
     "@hapi/joi": "^17.1.1",
     "@sendgrid/mail": "^7.2.5",
+    "axios": "^1.9.0",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.17.1",
@@ -29,7 +26,9 @@
     "mongoose": "^5.10.2",
     "morgan": "^1.10.0",
     "mysql2": "^2.1.0",
+    "nodemailer": "^7.0.3",
     "pg": "^8.16.0",
+    "razorpay": "^2.9.6",
     "sequelize": "^6.3.5",
     "winston": "^3.3.3",
     "winston-daily-rotate-file": "^4.5.0"

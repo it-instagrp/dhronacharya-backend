@@ -6,6 +6,7 @@
     "auditLog": "logs\\requests\\daily\\.66602cdde70fd43456e51d0c9addc83824638c4d-audit.json",
     "files": [
         {
+<<<<<<< HEAD
             "date": 1748845199744,
             "name": "logs\\requests\\daily\\2025-06-02.log",
             "hash": "75e166a7de055caf8a471dc475f898439d12414c1c642d794ee0a0054f63977c"
@@ -14,6 +15,51 @@
             "date": 1749103305300,
             "name": "logs\\requests\\daily\\2025-06-05.log",
             "hash": "20848ef4816992cefaad52662d3d54b101822d5c33a1d7dcb0870d85b7d5aae2"
+=======
+            "date": 1749542044600,
+            "name": "logs\\requests\\daily\\2025-06-10.log",
+            "hash": "7bd6e1321bde44c813154a8d954dd90b9659c51d086955acfb2c850883829e1b"
+        },
+        {
+            "date": 1749621622822,
+            "name": "logs\\requests\\daily\\2025-06-11.log",
+            "hash": "be4c4cbe06dd118fea954e46748dc77bf8680d4bf6723abcb26d6528b77b6dc2"
+        },
+        {
+            "date": 1749706595502,
+            "name": "logs\\requests\\daily\\2025-06-12.log",
+            "hash": "16cdc2a7e4f302a0fc144abd94fa2d88f0eb310397c6d4cffc1a0fdb47d33c20"
+        },
+        {
+            "date": 1749879688027,
+            "name": "logs\\requests\\daily\\2025-06-14.log",
+            "hash": "707a2566b1154445a2ad3ba54f197155235098d7cb9dc261162a10972a4b9fea"
+        },
+        {
+            "date": 1750051471974,
+            "name": "logs\\requests\\daily\\2025-06-16.log",
+            "hash": "8b7811b13b6a68ab2bc41709af0a0ba9db4222fe3a8b61ac8e113ea833b0d9ee"
+        },
+        {
+            "date": 1750227441528,
+            "name": "logs\\requests\\daily\\2025-06-18.log",
+            "hash": "d036ab799afd2653b9ca6ef61f78b457ab8c9a6bc1ade16049ac0b60622e0770"
+        },
+        {
+            "date": 1750321748711,
+            "name": "logs\\requests\\daily\\2025-06-19.log",
+            "hash": "28c57f55eaf2e286f9554beaf746d3f38515acf926c372b8baba419b67245c89"
+        },
+        {
+            "date": 1750401369750,
+            "name": "logs\\requests\\daily\\2025-06-20.log",
+            "hash": "bb192f277b73c484e7e9c98bb37445068a427e96a9e962a6bcadf5ac0d6727f1"
+        },
+        {
+            "date": 1750672811136,
+            "name": "logs\\requests\\daily\\2025-06-23.log",
+            "hash": "8ce513316259aca1638f2ed68690042e68489e950e4b8bd61768f643498a3c4c"
+>>>>>>> de58870b77c34b7d55500f20aec59fd89f26edfe
         }
     ],
     "hashType": "sha256"

@@ -9,6 +9,7 @@ import * as UserService from '../services/user.service.js';
  */
 /**** This method is for users to find all list of users ****/
 export const getAllUsers = async (req, res, next) => {
+  
   try {
     const data = await UserService.getAllUsers();
     res.status(HttpStatus.OK).json({

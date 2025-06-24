@@ -1,45 +1,36 @@
-'use strict';
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
-const User = sequelize.define('User', {
+const Coupon = sequelize.define('Coupon', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  email: {
-    type: DataTypes.STRING(255),
-    allowNull: true,
-    unique: true,
-    validate: {
-      isEmail: true,
-    },
-  },
-  mobile_number: {
-    type: DataTypes.STRING(15),
-    allowNull: true,
+  code: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
     unique: true,
   },
-  password_hash: {
-    type: DataTypes.STRING(255),
+  discount_type: {
+    type: DataTypes.ENUM('percentage', 'fixed'),
     allowNull: false,
   },
-  otp_secret: {
-    type: DataTypes.STRING(255),
+  discount_value: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+  },
+  max_uses: {
+    type: DataTypes.INTEGER,
     allowNull: true,
   },
-  otp_expires_at: {
+  uses_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  expiry_date: {
     type: DataTypes.DATE,
     allowNull: true,
-  },
-  role: {
-    type: DataTypes.STRING(50),
-    defaultValue: 'student',
-    allowNull: false,
-    validate: {
-      isIn: [['admin', 'tutor', 'student']]
-    }
   },
   is_active: {
     type: DataTypes.BOOLEAN,
@@ -54,9 +45,9 @@ const User = sequelize.define('User', {
     defaultValue: DataTypes.NOW,
   },
 }, {
-  tableName: 'users',
+  tableName: 'coupons',
   timestamps: true,
   underscored: true,
 });
 
-export default User;
+export default Coupon;
