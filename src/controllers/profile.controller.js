@@ -67,3 +67,25 @@ export const getProfile = async (req, res) => {
     });
   }
 };
+
+export const updateTutorProfile = async (req, res) => {
+  const { degrees, introduction_video } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const updateData = {};
+
+    if (degrees) updateData.degrees = degrees;
+    if (introduction_video) updateData.introduction_video = introduction_video;
+
+    await Tutor.update(updateData, { where: { user_id: userId } });
+
+    return res.status(HttpStatus.OK).json({ message: 'Tutor profile updated successfully' });
+  } catch (error) {
+    logger.error('Tutor profile update error:', error);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: 'Failed to update tutor profile',
+      error: error.message
+    });
+  }
+};
