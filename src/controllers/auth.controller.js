@@ -27,10 +27,10 @@ const generateOTP = () => {
 // ✅ Signup + Send OTP
 export const signup = async (req, res) => {
   const {
-    email, mobile_number, password, role,
-    name, class: studentClass, subjects,
-    degrees, introduction_video, classes
-  } = req.body;
+  email, mobile_number, password, role,
+  name, class: studentClass, subjects,
+  classes
+} = req.body;
 
   try {
     if (!email || !mobile_number || !password) {
@@ -64,14 +64,13 @@ export const signup = async (req, res) => {
       await Admin.create({ user_id: user.id, name });
     } else if (role === 'tutor') {
       await Tutor.create({
-        user_id: user.id,
-        name,
-        subjects,
-        classes,
-        degrees: degrees || [],
-        introduction_video: introduction_video || '',
-        profile_status: 'pending'
-      });
+  user_id: user.id,
+  name,
+  subjects,
+  classes,
+  profile_status: 'pending'
+});
+
     } else if (role === 'student') {
       await Student.create({
         user_id: user.id,

@@ -20,8 +20,8 @@ export const newUserValidator = (req, res, next) => {
     schema = schema.append({
       classes: Joi.array().items(Joi.string()).min(1).required(),
       subjects: Joi.array().items(Joi.string()).min(1).required(),
-      degrees: Joi.array().items(Joi.string()).optional(),
-      introduction_video: Joi.string().optional(),
+      // degrees: Joi.array().items(Joi.string()).optional(),
+      // introduction_video: Joi.string().optional(),
     });
   }
   // For admin, no extra fields required (you can add if needed)
