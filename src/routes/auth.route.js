@@ -1,17 +1,27 @@
 import express from 'express';
 import { newUserValidator, loginValidator } from '../validators/user.validator.js';
 import * as authController from '../controllers/auth.controller.js';
-import {
-  sendLoginOTP,
-  verifyLoginOTP
-} from '../controllers/auth.controller.js';
 
 const router = express.Router();
 
+// 🔐 User Registration
 router.post('/signup', newUserValidator, authController.signup);
+
+// 🔐 Email/Mobile + Password Login
 router.post('/login', loginValidator, authController.login);
-router.post('/auth/login/send-otp', sendLoginOTP);
-router.post('/auth/login/verify-otp', verifyLoginOTP);
+
+// 🔐 Verify Signup OTP (after /signup)
 router.post('/verify-otp', authController.verifyOTP);
+
+// 📲 Mobile Login via OTP
+router.post('/login/send-otp', authController.sendLoginOTP);
+router.post('/login/verify-otp', authController.verifyLoginOTP);
+
+// 🔐 Forgot & Reset Password (Optional Enhancements)
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+
+// 🔐 Authenticated route to change password (needs middleware protection in route group)
+router.post('/change-password', authController.changePassword); // apply `authenticate` middleware where used
 
 export default router;
