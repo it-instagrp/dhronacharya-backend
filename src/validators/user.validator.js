@@ -39,18 +39,9 @@ export const newUserValidator = (req, res, next) => {
 
 export const loginValidator = (req, res, next) => {
   const schema = Joi.object({
-    email: Joi.string().email().when('mobile_number', {
-      is: Joi.exist(),
-      then: Joi.optional(),
-      otherwise: Joi.required()
-    }),
-    mobile_number: Joi.string().min(10).max(15).when('email', {
-      is: Joi.exist(),
-      then: Joi.optional(),
-      otherwise: Joi.required()
-    }),
+    emailOrMobile: Joi.string().required(),
     password: Joi.string().required()
-  }).or('email', 'mobile_number');
+  });
 
   const { error, value } = schema.validate(req.body);
   if (error) {
