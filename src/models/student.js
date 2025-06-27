@@ -35,6 +35,11 @@ location_id: {
     key: 'id'
   }
 },
+preferred_modes: {
+  type: DataTypes.ARRAY(DataTypes.STRING), // ['Online', 'Offline']
+  allowNull: true
+}
+,
 }, {
   tableName: 'students',
   timestamps: true,
