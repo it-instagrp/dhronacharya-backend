@@ -48,6 +48,24 @@ location_id: {
   }
 }
 ,
+languages: {
+  type: DataTypes.ARRAY(DataTypes.JSON), // [{ language, proficiency }]
+  allowNull: true
+}
+,
+experience: {
+  type: DataTypes.INTEGER,
+  allowNull: true
+},
+teaching_modes: {
+  type: DataTypes.ARRAY(DataTypes.STRING), // ['Online', 'Offline']
+  allowNull: true
+},
+pricing_per_hour: {
+  type: DataTypes.DECIMAL(10, 2),
+  allowNull: true
+}
+,
 }, {
   tableName: 'tutors',
   timestamps: true,
