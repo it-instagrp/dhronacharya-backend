@@ -31,6 +31,10 @@ const SubscriptionPlan = sequelize.define('SubscriptionPlan', {
     type: DataTypes.JSONB,
     allowNull: true,
   },
+  user_type: {
+  type: DataTypes.ENUM('tutor', 'student'),
+  allowNull: false
+},
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,

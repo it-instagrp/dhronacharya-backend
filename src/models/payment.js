@@ -7,48 +7,14 @@ const Payment = sequelize.define('Payment', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  user_id: {
-    type: DataTypes.UUID,
-    allowNull: false,
-  },
-  plan_id: {
-    type: DataTypes.UUID,
-    allowNull: false,
-  },
-  razorpay_order_id: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  razorpay_payment_id: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  amount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-  },
-  currency: {
-    type: DataTypes.STRING(10),
-    allowNull: false,
-    defaultValue: 'INR',
-  },
-  status: {
-    type: DataTypes.STRING(50),
-    allowNull: false,
-    defaultValue: 'pending',
-  },
-  payment_gateway_response: {
-    type: DataTypes.JSONB,
-    allowNull: true,
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
-  updated_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
+  user_id: { type: DataTypes.UUID, allowNull: false },
+  plan_id: { type: DataTypes.UUID, allowNull: false },
+  razorpay_order_id: { type: DataTypes.STRING },
+  razorpay_payment_id: { type: DataTypes.STRING },
+  amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+  currency: { type: DataTypes.STRING, defaultValue: 'INR' },
+  status: { type: DataTypes.STRING, defaultValue: 'created' },
+  payment_gateway_response: { type: DataTypes.JSONB },
 }, {
   tableName: 'payments',
   timestamps: true,

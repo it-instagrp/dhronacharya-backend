@@ -6,6 +6,11 @@ import userRoutes from './user.route.js';
 import authRoutes from './auth.route.js';
 import profileRoutes from './profileRoutes.js';
 import enquiryRoutes from './enquiry.route.js';
+import paymentRoutes from './payment.route.js';
+
+import subscriptionRoutes from './subscription.route.js';
+
+
 
 /**
  * Function contains Application routes
@@ -21,6 +26,10 @@ const routes = () => {
   router.use('/users', userRoutes);
   router.use('/profile', profileRoutes);
   router.use('/enquiries', enquiryRoutes);
+ router.use('/payments', paymentRoutes);
+
+  router.use('/subscriptions', subscriptionRoutes); // Now /api/subscriptions will work
+
 
 
   return router;
