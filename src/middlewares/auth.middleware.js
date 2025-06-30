@@ -23,7 +23,8 @@ export const authenticate = async (req, res, next) => {
       { method: 'POST', path: '/api/auth/reset-password' },
       { method: 'POST', path: '/api/auth/send-login-otp' },
       { method: 'POST', path: '/api/auth/verify-login-otp' },
-       { method: 'POST', path: '/api/payments/create-order' }
+       {method: 'POST', path: '/api/payments/create-order' },
+       { method: 'POST', path: '/api/payments/verify-payment' }
     ];
 
     // Check if current route is public

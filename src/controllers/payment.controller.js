@@ -1,4 +1,5 @@
 import Razorpay from 'razorpay';
+import { v4 as uuidv4 } from 'uuid';
 import db from '../models/index.js';
 
 const razorpay = new Razorpay({
@@ -6,57 +7,34 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+// ------------------------
+// Create Razorpay Order
+// ------------------------
 export const createOrder = async (req, res) => {
-  const { user_id, plan_id, coupon_code } = req.body;
+  const { user_id, plan_id } = req.body;
 
   try {
-    // Fetch plan
+    console.log('📥 Create Order Request:', { user_id, plan_id });
+
     const plan = await db.SubscriptionPlan.findByPk(plan_id);
-    if (!plan) return res.status(404).json({ message: 'Subscription plan not found' });
-
-    let amount = parseFloat(plan.price) * 100; // Razorpay expects amount in paise
-
-    // Apply coupon if exists and valid
-    if (coupon_code) {
-      const coupon = await db.Coupon.findOne({
-        where: {
-          code: coupon_code,
-          is_active: true,
-          expiry_date: { [db.Sequelize.Op.gte]: new Date() }
-        }
-      });
-
-      if (coupon) {
-        if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) {
-          return res.status(400).json({ message: 'Coupon usage limit reached' });
-        }
-
-        if (coupon.discount_type === 'percentage') {
-          amount = amount - (amount * parseFloat(coupon.discount_value) / 100);
-        } else if (coupon.discount_type === 'fixed') {
-          amount = amount - (parseFloat(coupon.discount_value) * 100);
-        }
-
-        // Prevent negative price
-        amount = Math.max(amount, 0);
-
-        // Increase coupon usage count (you might do this on successful payment instead)
-        await coupon.increment('uses_count');
-      } else {
-        return res.status(400).json({ message: 'Invalid or expired coupon' });
-      }
+    if (!plan) {
+      console.log('❌ Plan not found!');
+      return res.status(404).json({ message: 'Plan not found' });
     }
 
-    // Create razorpay order
-    const options = {
-      amount: Math.round(amount), // amount in paise
+    const amount = parseFloat(plan.price) * 100;
+
+    // ✅ Fix: Razorpay receipt max length = 40 characters
+    const shortReceipt = `rcpt_${Date.now()}_${user_id.slice(0, 6)}`.slice(0, 40);
+
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount),
       currency: 'INR',
-      receipt: `receipt_${user_id}_${Date.now()}`,
-    };
+      receipt: shortReceipt,
+    });
 
-    const order = await razorpay.orders.create(options);
+    console.log('✅ Razorpay Order Created:', order.id);
 
-    // Create payment record with status pending
     const payment = await db.Payment.create({
       user_id,
       plan_id,
@@ -66,35 +44,41 @@ export const createOrder = async (req, res) => {
       status: 'created',
     });
 
-    res.json({ order_id: order.id, amount: amount / 100, currency: 'INR', payment_id: payment.id });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error creating order', error: error.message });
+    console.log('✅ Payment record created:', payment.id);
+
+    res.json({
+      order_id: order.id,
+      amount: amount / 100,
+      currency: 'INR',
+      payment_id: payment.id,
+    });
+
+  } catch (err) {
+    console.error('❌ Error in createOrder:', err);
+    res.status(500).json({ message: 'Error creating order', error: err.message });
   }
 };
 
-// To be called after successful payment, from webhook or frontend callback
+// ------------------------
+// Verify Razorpay Payment
+// ------------------------
 export const verifyPayment = async (req, res) => {
-  const {
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-  } = req.body;
-
-  // Verify signature (implement signature verification as per Razorpay docs)
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
   try {
-    // Find payment record
-    const payment = await db.Payment.findOne({ where: { razorpay_order_id } });
-    if (!payment) return res.status(404).json({ message: 'Payment not found' });
+    console.log('📥 Verifying Payment:', { razorpay_order_id });
 
-    // Update payment status
+    const payment = await db.Payment.findOne({ where: { razorpay_order_id } });
+    if (!payment) {
+      console.log('❌ Payment not found!');
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
     payment.razorpay_payment_id = razorpay_payment_id;
     payment.status = 'paid';
     payment.payment_gateway_response = req.body;
     await payment.save();
 
-    // Create user subscription
     const plan = await db.SubscriptionPlan.findByPk(payment.plan_id);
     const startDate = new Date();
     const endDate = new Date();
@@ -110,9 +94,12 @@ export const verifyPayment = async (req, res) => {
       is_active: true,
     });
 
+    console.log('✅ Subscription activated');
+
     res.json({ message: 'Payment verified and subscription activated' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Payment verification failed', error: error.message });
+
+  } catch (err) {
+    console.error('❌ Error in verifyPayment:', err);
+    res.status(500).json({ message: 'Verification failed', error: err.message });
   }
 };
