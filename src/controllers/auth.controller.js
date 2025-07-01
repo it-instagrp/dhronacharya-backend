@@ -27,10 +27,10 @@ const generateOTP = () => {
 // ✅ Signup + Send OTP
 export const signup = async (req, res) => {
   const {
-  email, mobile_number, password, role,
-  name, class: studentClass, subjects,
-  classes
-} = req.body;
+    email, mobile_number, password, role,
+    name, class: studentClass, subjects,
+    classes
+  } = req.body;
 
   try {
     if (!email || !mobile_number || !password) {
@@ -64,13 +64,12 @@ export const signup = async (req, res) => {
       await Admin.create({ user_id: user.id, name });
     } else if (role === 'tutor') {
       await Tutor.create({
-  user_id: user.id,
-  name,
-  subjects,
-  classes,
-  profile_status: 'pending'
-});
-
+        user_id: user.id,
+        name,
+        subjects,
+        classes,
+        profile_status: 'pending'
+      });
     } else if (role === 'student') {
       await Student.create({
         user_id: user.id,
@@ -104,6 +103,7 @@ export const verifyOTP = async (req, res) => {
         { model: Student, include: [Location] }
       ]
     });
+
     if (!user) return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
 
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
@@ -122,12 +122,138 @@ export const verifyOTP = async (req, res) => {
       email: user.email,
       mobile_number: user.mobile_number,
       role: user.role,
-      profile: user.Tutor || user.Student || null
+      profile: user.Tutor || user.Student || null,
+      profile_status: user.Tutor?.profile_status || null
     };
 
     return res.status(HttpStatus.OK).json({ message: 'OTP verified', token, user: userData });
   } catch (err) {
     logger.error('OTP Verification Error:', err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'OTP verification failed' });
+  }
+};
+
+// ✅ Login with email or mobile + password
+export const login = async (req, res) => {
+  const { emailOrMobile, password } = req.body;
+
+  try {
+    const user = await User.findOne({
+      where: {
+        [sequelize.Sequelize.Op.or]: [
+          { email: emailOrMobile },
+          { mobile_number: emailOrMobile }
+        ]
+      },
+      include: [
+        { model: Tutor, include: [Location] },
+        { model: Student, include: [Location] }
+      ]
+    });
+
+    if (!user || !user.is_active) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'User not found or not verified' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid credentials' });
+    }
+
+    // ❌ Block admin login
+    if (user.role === 'admin') {
+      return res.status(HttpStatus.FORBIDDEN).json({ message: 'Admins are not allowed to login here.' });
+    }
+
+    // ✅ Allow tutor login even if profile_status is pending or rejected
+    const token = generateToken(user);
+    const userData = {
+      id: user.id,
+      email: user.email,
+      mobile_number: user.mobile_number,
+      role: user.role,
+      profile_status: user.Tutor?.profile_status || null,
+      profile: user.Tutor || user.Student || null
+    };
+
+    return res.status(HttpStatus.OK).json({ token, user: userData });
+  } catch (err) {
+    logger.error('Login Error:', err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Login failed' });
+  }
+};
+
+// 📱 Send OTP for Mobile Login
+export const sendLoginOTP = async (req, res) => {
+  const { mobile_number } = req.body;
+
+  try {
+    const user = await User.findOne({ where: { mobile_number } });
+
+    if (!user || !user.is_active) {
+      return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found or not active' });
+    }
+
+    const otp = generateOTP();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+    user.otp_secret = otpHash;
+    user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    await sendEmail(user.email, 'Login OTP', `Your OTP is ${otp}`);
+    await sendSMS(user.mobile_number, `Your OTP is ${otp}`);
+
+    return res.status(HttpStatus.OK).json({
+      message: 'OTP sent to registered email and SMS',
+      user_id: user.id
+    });
+  } catch (err) {
+    logger.error('Send Login OTP Error:', err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Failed to send OTP' });
+  }
+};
+
+// ✅ Verify Mobile OTP Login
+export const verifyLoginOTP = async (req, res) => {
+  const { user_id, otp } = req.body;
+
+  try {
+    const user = await User.findByPk(user_id, {
+      include: [
+        { model: Tutor, include: [Location] },
+        { model: Student, include: [Location] }
+      ]
+    });
+
+    if (!user) return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
+
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.otp_secret !== otpHash || new Date() > user.otp_expires_at) {
+      return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
+    }
+
+    user.otp_secret = null;
+    user.otp_expires_at = null;
+    await user.save();
+
+    const token = generateToken(user);
+    const userData = {
+      id: user.id,
+      email: user.email,
+      mobile_number: user.mobile_number,
+      role: user.role,
+      profile_status: user.Tutor?.profile_status || null,
+      profile: user.Tutor || user.Student || null
+    };
+
+    return res.status(HttpStatus.OK).json({
+      message: 'OTP verified and logged in',
+      token,
+      user: userData
+    });
+  } catch (err) {
+    logger.error('Verify Login OTP Error:', err);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'OTP verification failed' });
   }
 };
@@ -200,123 +326,5 @@ export const changePassword = async (req, res) => {
   } catch (err) {
     logger.error('Change Password Error:', err);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Error changing password' });
-  }
-};
-
-// 🔑 Login with email or mobile + password
-export const login = async (req, res) => {
-  const { emailOrMobile, password } = req.body;
-
-  try {
-    const user = await User.findOne({
-      where: {
-        [sequelize.Sequelize.Op.or]: [
-          { email: emailOrMobile },
-          { mobile_number: emailOrMobile }
-        ]
-      },
-      include: [
-        { model: Tutor, include: [Location] },
-        { model: Student, include: [Location] }
-      ]
-    });
-
-    if (!user || !user.is_active) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'User not found or not verified' });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid credentials' });
-    }
-
-    const token = generateToken(user);
-    const userData = {
-      id: user.id,
-      email: user.email,
-      mobile_number: user.mobile_number,
-      role: user.role,
-      profile: user.Tutor || user.Student || null
-    };
-
-    return res.status(HttpStatus.OK).json({ token, user: userData });
-  } catch (err) {
-    logger.error('Login Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Login failed' });
-  }
-};
-
-// 📱 Send OTP for Mobile Login
-export const sendLoginOTP = async (req, res) => {
-  const { mobile_number } = req.body;
-
-  try {
-    const user = await User.findOne({ where: { mobile_number } });
-
-    if (!user || !user.is_active) {
-      return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found or not active' });
-    }
-
-    const otp = generateOTP();
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-
-    user.otp_secret = otpHash;
-    user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000);
-    await user.save();
-
-    await sendEmail(user.email, 'Login OTP', `Your OTP is ${otp}`);
-    await sendSMS(user.mobile_number, `Your OTP is ${otp}`);
-
-    return res.status(HttpStatus.OK).json({
-      message: 'OTP sent to registered email and SMS',
-      user_id: user.id
-    });
-  } catch (err) {
-    logger.error('Send Login OTP Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Failed to send OTP' });
-  }
-};
-
-// ✅ Verify Mobile OTP Login
-export const verifyLoginOTP = async (req, res) => {
-  const { user_id, otp } = req.body;
-
-  try {
-    const user = await User.findByPk(user_id, {
-      include: [
-        { model: Tutor, include: [Location] },
-        { model: Student, include: [Location] }
-      ]
-    });
-    if (!user) {
-      return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
-    }
-
-    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
-    if (user.otp_secret !== otpHash || new Date() > user.otp_expires_at) {
-      return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
-    }
-
-    user.otp_secret = null;
-    user.otp_expires_at = null;
-    await user.save();
-
-    const token = generateToken(user);
-    const userData = {
-      id: user.id,
-      email: user.email,
-      mobile_number: user.mobile_number,
-      role: user.role,
-      profile: user.Tutor || user.Student || null
-    };
-
-    return res.status(HttpStatus.OK).json({
-      message: 'OTP verified and logged in',
-      token,
-      user: userData
-    });
-  } catch (err) {
-    logger.error('Verify Login OTP Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'OTP verification failed' });
   }
 };

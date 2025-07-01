@@ -6,6 +6,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { authenticate } from './middlewares/auth.middleware.js';
 import routes from './routes/index.js';
+import './scheduler.js';
+
 
 import {
   appErrorHandler,

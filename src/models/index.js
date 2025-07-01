@@ -11,6 +11,7 @@ import Coupon from './coupon.js';
 import Notification from './notification.js';
 import Location from './Location.js';
 import Enquiry from './enquiry.js';
+import ClassSchedule from './classSchedule.js';
 
 
 const db = {};
@@ -70,6 +71,14 @@ db.User.hasMany(Enquiry, { foreignKey: 'receiver_id', as: 'ReceivedEnquiries' })
 
 Enquiry.belongsTo(db.User, { foreignKey: 'sender_id', as: 'Sender' });
 Enquiry.belongsTo(db.User, { foreignKey: 'receiver_id', as: 'Receiver' });
+ //class schedules 
+db.ClassSchedule = ClassSchedule;
+
+db.User.hasMany(ClassSchedule, { foreignKey: 'tutor_id', as: 'TutorClasses' });
+db.User.hasMany(ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasses' });
+
+ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
+ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
 
 sequelize.sync().then(()=>console.log("Model Synced"));
 
