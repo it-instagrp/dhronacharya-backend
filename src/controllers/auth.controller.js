@@ -134,6 +134,7 @@ export const verifyOTP = async (req, res) => {
 };
 
 // ✅ Login with email or mobile + password
+// ✅ Login with email or mobile + password
 export const login = async (req, res) => {
   const { emailOrMobile, password } = req.body;
 
@@ -147,7 +148,8 @@ export const login = async (req, res) => {
       },
       include: [
         { model: Tutor, include: [Location] },
-        { model: Student, include: [Location] }
+        { model: Student, include: [Location] },
+        { model: Admin }
       ]
     });
 
@@ -160,12 +162,6 @@ export const login = async (req, res) => {
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid credentials' });
     }
 
-    // ❌ Block admin login
-    if (user.role === 'admin') {
-      return res.status(HttpStatus.FORBIDDEN).json({ message: 'Admins are not allowed to login here.' });
-    }
-
-    // ✅ Allow tutor login even if profile_status is pending or rejected
     const token = generateToken(user);
     const userData = {
       id: user.id,
@@ -173,7 +169,7 @@ export const login = async (req, res) => {
       mobile_number: user.mobile_number,
       role: user.role,
       profile_status: user.Tutor?.profile_status || null,
-      profile: user.Tutor || user.Student || null
+      profile: user.Tutor || user.Student || user.Admin || null
     };
 
     return res.status(HttpStatus.OK).json({ token, user: userData });
