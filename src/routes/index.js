@@ -10,6 +10,7 @@ import paymentRoutes from './payment.route.js';
 import contactRoutes from './contact.route.js';
 import classRoutes from './class.route.js';
 import subscriptionRoutes from './subscription.route.js';
+import messageRoutes from './message.routes.js';
 
 // ✅ Import Admin Routes
 import adminRoutes from './admin.routes.js';
@@ -35,6 +36,8 @@ const routes = () => {
 
   // ✅ Add Admin Route Mount
   router.use('/admin', adminRoutes); // API path: /api/admin/*
+  router.use('/enquiries', messageRoutes);
+
 
   return router;
 };

@@ -12,6 +12,7 @@ import Notification from './notification.js';
 import Location from './Location.js';
 import Enquiry from './enquiry.js';
 import ClassSchedule from './classSchedule.js';
+import Message from './message.js';
 
 
 const db = {};
@@ -79,6 +80,14 @@ db.User.hasMany(ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasses' 
 
 ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
 ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
+
+db.Message = Message;
+
+db.Enquiry.hasMany(Message, { foreignKey: 'enquiry_id', as: 'Messages' });
+Message.belongsTo(db.Enquiry, { foreignKey: 'enquiry_id' });
+
+db.User.hasMany(Message, { foreignKey: 'sender_id' });
+Message.belongsTo(db.User, { foreignKey: 'sender_id' });
 
 sequelize.sync().then(()=>console.log("Model Synced"));
 
