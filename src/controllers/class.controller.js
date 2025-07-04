@@ -26,10 +26,9 @@ export const createClass = async (req, res) => {
     }
 
     const targetTime = new Date(date_time);
-    const bufferStart = new Date(targetTime.getTime() - 30 * 60 * 1000); // -30 mins
-    const bufferEnd = new Date(targetTime.getTime() + 30 * 60 * 1000);   // +30 mins
+    const bufferStart = new Date(targetTime.getTime() - 30 * 60 * 1000);
+    const bufferEnd = new Date(targetTime.getTime() + 30 * 60 * 1000);
 
-    // 🔍 Conflict check in ±30 mins window
     const conflict = await ClassSchedule.findOne({
       where: {
         date_time: { [Op.between]: [bufferStart, bufferEnd] },
@@ -42,9 +41,8 @@ export const createClass = async (req, res) => {
     });
 
     if (conflict) {
-      // 🔄 Suggest next available slot within 1 hour
-      let suggestedTime = new Date(targetTime.getTime() + 30 * 60 * 1000); // +30 mins
-      const maxTime = new Date(targetTime.getTime() + 60 * 60 * 1000);     // +1 hour
+      let suggestedTime = new Date(targetTime.getTime() + 30 * 60 * 1000);
+      const maxTime = new Date(targetTime.getTime() + 60 * 60 * 1000);
       let found = false;
 
       while (suggestedTime <= maxTime) {
@@ -67,20 +65,16 @@ export const createClass = async (req, res) => {
           break;
         }
 
-        // Try next 30-minute slot
         suggestedTime = new Date(suggestedTime.getTime() + 30 * 60 * 1000);
       }
 
       return res.status(409).json({
         message: '⛔ Conflict: A class is already scheduled within 30 minutes for this tutor or student.',
         conflict,
-        suggestion: found
-          ? suggestedTime.toISOString()
-          : '❌ No free slot found within next 1 hour'
+        suggestion: found ? suggestedTime.toISOString() : '❌ No free slot found within next 1 hour'
       });
     }
 
-    // ✅ Create class if no conflict
     const scheduledClass = await ClassSchedule.create({
       title,
       tutor_id: finalTutorId,
@@ -115,7 +109,7 @@ export const createClass = async (req, res) => {
   }
 };
 
-// 📆 Get Scheduled Classes (for tutor or student calendar)
+// 📆 Get Scheduled Classes (for tutor or student)
 export const getMyClasses = async (req, res) => {
   const userId = req.user.id;
   const role = req.user.role;
@@ -136,5 +130,93 @@ export const getMyClasses = async (req, res) => {
       message: '❌ Failed to get classes',
       error: error.message
     });
+  }
+};
+
+// ✏️ Update Class Details
+export const updateClass = async (req, res) => {
+  const { id } = req.params;
+  const { title, date_time, zoom_link, status } = req.body;
+  const userId = req.user.id;
+  const role = req.user.role;
+
+  try {
+    const scheduledClass = await ClassSchedule.findByPk(id);
+    if (!scheduledClass) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    if (
+      role !== 'admin' &&
+      userId !== scheduledClass.tutor_id &&
+      userId !== scheduledClass.student_id
+    ) {
+      return res.status(403).json({ message: 'Unauthorized to update this class' });
+    }
+
+    if (title) scheduledClass.title = title;
+    if (date_time) scheduledClass.date_time = date_time;
+    if (zoom_link) scheduledClass.zoom_link = zoom_link;
+    if (status) scheduledClass.status = status;
+
+    await scheduledClass.save();
+
+    return res.status(200).json({
+      message: '✅ Class updated successfully',
+      class: scheduledClass
+    });
+  } catch (err) {
+    return res.status(500).json({ message: '❌ Failed to update class', error: err.message });
+  }
+};
+
+// ❌ Cancel a Class
+export const cancelClass = async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const role = req.user.role;
+
+  try {
+    const scheduledClass = await ClassSchedule.findByPk(id);
+    if (!scheduledClass) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    if (
+      role !== 'admin' &&
+      userId !== scheduledClass.tutor_id &&
+      userId !== scheduledClass.student_id
+    ) {
+      return res.status(403).json({ message: 'Unauthorized to cancel this class' });
+    }
+
+    scheduledClass.status = 'cancelled';
+    await scheduledClass.save();
+
+    return res.status(200).json({ message: '❌ Class cancelled successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: '❌ Failed to cancel class', error: err.message });
+  }
+};
+
+// 🛠 Admin: View All Classes
+export const getAllClasses = async (req, res) => {
+  const role = req.user.role;
+  if (role !== 'admin') {
+    return res.status(403).json({ message: 'Only admins can view all classes' });
+  }
+
+  try {
+    const allClasses = await ClassSchedule.findAll({
+      order: [['date_time', 'DESC']],
+      include: [
+        { model: User, as: 'Tutor', attributes: ['id', 'email', 'mobile_number'] },
+        { model: User, as: 'Student', attributes: ['id', 'email', 'mobile_number'] }
+      ]
+    });
+
+    return res.status(200).json({ classes: allClasses });
+  } catch (err) {
+    return res.status(500).json({ message: '❌ Failed to fetch all classes', error: err.message });
   }
 };
