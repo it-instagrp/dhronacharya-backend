@@ -3,19 +3,51 @@ import { sendEmail } from '../utils/email.js';
 import { sendWhatsApp } from '../utils/whatsapp.js';
 import { createNotification } from './notification.controller.js';
 
-const { Enquiry, User } = db;
+const { Enquiry, User, Tutor } = db;
 
 // Create Enquiry with Notification
 export const createEnquiry = async (req, res) => {
   const { receiver_id, subject, class: className, description } = req.body;
   const sender_id = req.user.id;
+  const sender_role = req.user.role;
 
   try {
-    const receiver = await User.findByPk(receiver_id);
+    const receiver = await User.findByPk(receiver_id, { include: [{ model: Tutor }] });
     const sender = await User.findByPk(sender_id);
 
     if (!receiver) {
       return res.status(404).json({ message: 'Receiver not found' });
+    }
+
+    // 🧠 Check and update contact limit for student
+    if (sender_role === 'student') {
+      const activeSub = await db.UserSubscription.findOne({
+        where: { user_id: sender_id, is_active: true },
+      });
+
+      if (!activeSub || activeSub.contacts_remaining <= 0) {
+        return res.status(403).json({ message: 'Student contact limit exhausted. Upgrade your subscription.' });
+      }
+
+      // Deduct one contact
+      activeSub.contacts_remaining -= 1;
+      await activeSub.save();
+    }
+
+    // 🧠 Check tutor's subscription before allowing enquiry
+    if (receiver.role === 'tutor') {
+      const tutorSub = await db.UserSubscription.findOne({
+        where: { user_id: receiver_id, is_active: true },
+      });
+
+      if (!tutorSub) {
+        return res.status(403).json({ message: 'Tutor is not subscribed. Cannot send enquiry.' });
+      }
+
+      // ❌ Block if tutor profile is not approved
+      if (receiver.Tutor?.profile_status !== 'approved') {
+        return res.status(403).json({ message: 'Tutor profile is not approved yet. Cannot send enquiry.' });
+      }
     }
 
     const enquiry = await Enquiry.create({
