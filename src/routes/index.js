@@ -11,13 +11,11 @@ import contactRoutes from './contact.route.js';
 import classRoutes from './class.route.js';
 import subscriptionRoutes from './subscription.route.js';
 import messageRoutes from './message.routes.js';
-
-// ✅ Import Admin Routes
-import adminRoutes from './admin.routes.js';
+import tutorRoutes from './tutor.routes.js';
+import adminRoutes from './admin.routes.js';  // ✅ Admin routes
 
 /**
  * Function contains Application routes
- *
  * @returns router
  */
 const routes = () => {
@@ -33,11 +31,9 @@ const routes = () => {
   router.use('/subscriptions', subscriptionRoutes);
   router.use('/contacts', contactRoutes);
   router.use('/classes', classRoutes);
-
-  // ✅ Add Admin Route Mount
-  router.use('/admin', adminRoutes); // API path: /api/admin/*
-  router.use('/enquiries', messageRoutes);
-
+  router.use('/admin', adminRoutes);  // ✅ Admin Route
+  router.use('/messages', messageRoutes);
+  router.use('/tutors', tutorRoutes);  // ✅ Tutor Route
 
   return router;
 };
