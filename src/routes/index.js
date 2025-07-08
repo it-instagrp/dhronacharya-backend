@@ -12,7 +12,8 @@ import classRoutes from './class.route.js';
 import subscriptionRoutes from './subscription.route.js';
 import messageRoutes from './message.routes.js';
 import tutorRoutes from './tutor.routes.js';
-import adminRoutes from './admin.routes.js';  // ✅ Admin routes
+import adminRoutes from './admin.routes.js';
+import searchRoutes from './search.routes.js';   // ✅ Corrected path here
 
 /**
  * Function contains Application routes
@@ -31,9 +32,10 @@ const routes = () => {
   router.use('/subscriptions', subscriptionRoutes);
   router.use('/contacts', contactRoutes);
   router.use('/classes', classRoutes);
-  router.use('/admin', adminRoutes);  // ✅ Admin Route
+  router.use('/admin', adminRoutes);
   router.use('/messages', messageRoutes);
-  router.use('/tutors', tutorRoutes);  // ✅ Tutor Route
+  router.use('/tutors', tutorRoutes);
+  router.use('/search', searchRoutes);           // ✅ Fixed: added inside router
 
   return router;
 };
