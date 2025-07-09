@@ -11,33 +11,34 @@ import contactRoutes from './contact.route.js';
 import classRoutes from './class.route.js';
 import subscriptionRoutes from './subscription.route.js';
 import messageRoutes from './message.routes.js';
-
-// ✅ Import Admin Routes
+import tutorRoutes from './tutor.routes.js';
 import adminRoutes from './admin.routes.js';
+import searchRoutes from './search.routes.js';
+import billingRoutes from './billing.routes.js'; // ✅ Correct
+
 
 /**
  * Function contains Application routes
- *
  * @returns router
  */
 const routes = () => {
   router.get('/', (req, res) => {
-    res.json('Welcome');
+    res.json('Welcome to API');
   });
 
   router.use('/auth', authRoutes);
   router.use('/users', userRoutes);
   router.use('/profile', profileRoutes);
-  router.use('/enquiries', enquiryRoutes);
+  router.use('/enquiries', enquiryRoutes);        // Includes enquiry + messages
   router.use('/payments', paymentRoutes);
   router.use('/subscriptions', subscriptionRoutes);
   router.use('/contacts', contactRoutes);
   router.use('/classes', classRoutes);
-
-  // ✅ Add Admin Route Mount
-  router.use('/admin', adminRoutes); // API path: /api/admin/*
-  router.use('/enquiries', messageRoutes);
-
+  router.use('/admin', adminRoutes);
+  router.use('/messages', messageRoutes);         // If used separately
+  router.use('/tutors', tutorRoutes);
+  router.use('/search', searchRoutes);
+  router.use('/billing', billingRoutes); 
 
   return router;
 };

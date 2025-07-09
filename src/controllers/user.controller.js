@@ -9,12 +9,12 @@ import * as UserService from '../services/user.service.js';
  */
 /**** This method is for users to find all list of users ****/
 export const getAllUsers = async (req, res, next) => {
-  
   try {
-    const data = await UserService.getAllUsers();
+    const role = req.query.role; // e.g., ?role=student
+    const data = await UserService.getAllUsers(role);
     res.status(HttpStatus.OK).json({
       code: HttpStatus.OK,
-      data: data,
+      data,
       message: 'All users fetched successfully',
     });
   } catch (error) {
