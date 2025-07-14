@@ -38,8 +38,14 @@ location_id: {
 preferred_modes: {
   type: DataTypes.ARRAY(DataTypes.STRING), // ['Online', 'Offline']
   allowNull: true
-}
-,
+},
+// Add to both Student and Tutor models
+profile_photo: {
+  type: DataTypes.STRING,
+  allowNull: true,
+},
+
+
 }, {
   tableName: 'students',
   timestamps: true,

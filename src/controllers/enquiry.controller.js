@@ -91,22 +91,42 @@ export const getEnquiries = async (req, res) => {
   const user_id = req.user.id;
 
   try {
-    const sent = await Enquiry.findAll({
+    const sent = await db.Enquiry.findAll({
       where: { sender_id: user_id },
-      include: [{ model: User, as: 'Receiver', attributes: ['id', 'email', 'role'] }]
+      include: [
+        {
+          model: db.User,
+          as: 'Receiver',
+          attributes: ['id', 'email', 'role'],
+          include: [
+            { model: db.Tutor, attributes: ['name'] },
+            { model: db.Student, attributes: ['name'] },
+          ],
+        },
+      ],
     });
 
-    const received = await Enquiry.findAll({
+    const received = await db.Enquiry.findAll({
       where: { receiver_id: user_id },
-      include: [{ model: User, as: 'Sender', attributes: ['id', 'email', 'role'] }]
+      include: [
+        {
+          model: db.User,
+          as: 'Sender',
+          attributes: ['id', 'email', 'role'],
+          include: [
+            { model: db.Tutor, attributes: ['name'] },
+            { model: db.Student, attributes: ['name'] },
+          ],
+        },
+      ],
     });
 
     return res.status(200).json({ sent, received });
   } catch (err) {
+    console.error('❌ getEnquiries error:', err);
     return res.status(500).json({ message: 'Failed to fetch enquiries', error: err.message });
   }
 };
-
 // Update Enquiry with Response Message
 export const updateEnquiryStatus = async (req, res) => {
   const { id } = req.params;

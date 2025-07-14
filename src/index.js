@@ -37,6 +37,8 @@ app.use(`/api`, routes());
 app.use(appErrorHandler);
 app.use(genericErrorHandler);
 app.use(notFound);
+app.use('/uploads', express.static('uploads'));
+
 
 app.listen(port, () => {
   logger.info(`Server started at ${host}:${port}/api/`);

@@ -27,10 +27,18 @@ const Tutor = sequelize.define('Tutor', {
     type: DataTypes.STRING(255),
     allowNull: true,  // Optional
   },
-  profile_status: {
-    type: DataTypes.STRING(50),
-    defaultValue: 'pending',
-  },
+ profile_status: {
+  type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+  defaultValue: 'pending',
+}
+,
+documents: {
+  type: DataTypes.JSON,
+  allowNull: true,
+  defaultValue: {}
+}
+,
+
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
@@ -64,8 +72,14 @@ teaching_modes: {
 pricing_per_hour: {
   type: DataTypes.DECIMAL(10, 2),
   allowNull: true
-}
-,
+},
+// Add to both Student and Tutor models
+profile_photo: {
+  type: DataTypes.STRING,
+  allowNull: true,
+},
+
+
 }, {
   tableName: 'tutors',
   timestamps: true,

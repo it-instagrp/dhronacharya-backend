@@ -1,6 +1,12 @@
 import express from 'express';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import * as classController from '../controllers/class.controller.js';
+import {
+  createClass,
+  getMyClasses,
+  updateClass,
+  cancelClass,
+  getAllClasses
+} from '../controllers/class.controller.js'; // ✅ Named imports
 
 const router = express.Router();
 
@@ -8,18 +14,18 @@ const router = express.Router();
 router.use(authenticate);
 
 // 📅 Schedule a class (student/tutor)
-router.post('/', classController.createClass);
+router.post('/', createClass);
 
 // 📆 Get my scheduled classes (student/tutor)
-router.get('/', classController.getMyClasses);
+router.get('/', getMyClasses);
 
 // ✏️ Update a class (student/tutor/admin)
-router.patch('/:id', classController.updateClass);
+router.patch('/:id', updateClass);
 
 // ❌ Cancel a class (student/tutor/admin)
-router.delete('/:id', classController.cancelClass);
+router.delete('/:id', cancelClass);
 
 // 🛠 Admin: View all scheduled classes
-router.get('/all', authorize('admin'), classController.getAllClasses);
+router.get('/all', authorize('admin'), getAllClasses);
 
 export default router;
