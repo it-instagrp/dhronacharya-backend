@@ -10,7 +10,11 @@ import {
   deleteUser,
   blockUnblockUser,
   updateStudentByAdmin,
-  updateTutorByAdmin
+  updateTutorByAdmin,
+  getDashboardSummary,
+   getPendingVerifications,
+  verifyTutorProfile,
+  adminDeleteProfilePhoto
 } from '../controllers/admin.controller.js';
 
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -18,6 +22,9 @@ import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 const router = express.Router();
 router.use(authenticate);
 router.use(authorize('admin'));
+
+// 📊 Dashboard Summary Route
+router.get('/dashboard-summary', getDashboardSummary);
 
 // 🔍 View all
 router.get('/students', getAllStudents);
@@ -33,5 +40,15 @@ router.patch('/users/:user_id/block', blockUnblockUser);
 
 // ❌ Delete
 router.delete('/users/:user_id', deleteUser);
+
+// Get pending verifications
+router.get('/verifications/pending', getPendingVerifications);
+
+// Approve/Reject tutor
+router.patch('/verifications/tutor/:user_id', verifyTutorProfile);
+
+
+// 🧹 Admin delete user profile photo
+router.delete('/photo/:user_id/:role', authenticate, authorize(['admin']), adminDeleteProfilePhoto);
 
 export default router;

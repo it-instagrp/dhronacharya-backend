@@ -51,6 +51,7 @@ export const signup = async (req, res) => {
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
 
     const user = await User.create({
+      name, //updated name
       email,
       mobile_number,
       password_hash: hashedPassword,
@@ -229,6 +230,8 @@ export const verifyLoginOTP = async (req, res) => {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
     }
 
+    // ✅ FIX: Mark user as active after OTP login
+    user.is_active = true;
     user.otp_secret = null;
     user.otp_expires_at = null;
     await user.save();
@@ -253,7 +256,6 @@ export const verifyLoginOTP = async (req, res) => {
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'OTP verification failed' });
   }
 };
-
 // ✅ Forgot Password - Send OTP
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;

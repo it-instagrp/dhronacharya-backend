@@ -25,6 +25,7 @@
     "mailgun-js": "^0.22.0",
     "mongoose": "^5.10.2",
     "morgan": "^1.10.0",
+    "multer": "^2.0.1",
     "mysql2": "^2.1.0",
     "node-cron": "^4.1.1",
     "nodemailer": "^7.0.3",

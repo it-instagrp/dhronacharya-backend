@@ -5,13 +5,16 @@ import { Op } from 'sequelize';
 
 const { ClassSchedule, User } = db;
 
-// 📅 Schedule a Class (supports tutor or student)
+// 🗕 Schedule a Class (supports tutor or student)
 export const createClass = async (req, res) => {
-  const { title, tutor_id, student_id, zoom_link, date_time, type } = req.body;
+  const { name, tutor_id, student_id, zoom_link, date_time, type } = req.body;
   const role = req.user.role;
   const userId = req.user.id;
 
   try {
+    if (!name) return res.status(400).json({ message: 'Class name is required' });
+    if (!date_time) return res.status(400).json({ message: 'Class date_time is required' });
+
     let finalTutorId = tutor_id;
     let finalStudentId = student_id;
 
@@ -24,6 +27,9 @@ export const createClass = async (req, res) => {
     } else {
       return res.status(403).json({ message: 'Only tutors or students can schedule classes' });
     }
+
+    const tutor = await User.findByPk(finalTutorId);
+    const student = await User.findByPk(finalStudentId);
 
     const targetTime = new Date(date_time);
     const bufferStart = new Date(targetTime.getTime() - 30 * 60 * 1000);
@@ -69,26 +75,26 @@ export const createClass = async (req, res) => {
       }
 
       return res.status(409).json({
-        message: '⛔ Conflict: A class is already scheduled within 30 minutes for this tutor or student.',
+        message: '⛘ Conflict: A class is already scheduled within 30 minutes for this tutor or student.',
         conflict,
         suggestion: found ? suggestedTime.toISOString() : '❌ No free slot found within next 1 hour'
       });
     }
 
     const scheduledClass = await ClassSchedule.create({
-      title,
+      title: name,
       tutor_id: finalTutorId,
+      tutor_name: tutor?.name || null,
       student_id: finalStudentId,
+      student_name: student?.name || null,
       zoom_link,
       date_time,
       type: type || 'regular',
+      subject: name,
     });
 
     const formattedDate = new Date(date_time).toLocaleString();
-    const msg = `📚 New ${type || 'regular'} class scheduled: "${title}" on ${formattedDate}`;
-
-    const tutor = await User.findByPk(finalTutorId);
-    const student = await User.findByPk(finalStudentId);
+    const msg = `📚 New ${type || 'regular'} class scheduled: "${name}" on ${formattedDate}`;
 
     if (student.email) await sendEmail(student.email, 'Class Scheduled', msg);
     if (tutor.email) await sendEmail(tutor.email, 'Class Scheduled', msg);
@@ -97,7 +103,19 @@ export const createClass = async (req, res) => {
 
     return res.status(201).json({
       message: '✅ Class scheduled successfully',
-      scheduledClass
+      scheduledClass: {
+        ...scheduledClass.toJSON(),
+        Student: {
+          id: student.id,
+          name: student.name,
+          email: student.email
+        },
+        Tutor: {
+          id: tutor.id,
+          name: tutor.name,
+          email: tutor.email
+        }
+      }
     });
 
   } catch (error) {
@@ -109,7 +127,7 @@ export const createClass = async (req, res) => {
   }
 };
 
-// 📆 Get Scheduled Classes (for tutor or student)
+// 🗖 Get Scheduled Classes (for tutor or student)
 export const getMyClasses = async (req, res) => {
   const userId = req.user.id;
   const role = req.user.role;
@@ -122,21 +140,53 @@ export const getMyClasses = async (req, res) => {
     const classes = await ClassSchedule.findAll({
       where: whereClause,
       order: [['date_time', 'ASC']],
+      include: [
+        {
+          model: User,
+          as: 'Tutor',
+          attributes: ['id', 'name', 'email'],
+        },
+        {
+          model: User,
+          as: 'Student',
+          attributes: ['id', 'name', 'email'],
+        },
+      ],
     });
 
-    return res.status(200).json({ classes });
+    const formatted = classes.map((cls) => ({
+      id: cls.id,
+      name: cls.title || "Class",
+      date_time: cls.date_time,
+      type: cls.type,
+      subject: cls.subject || cls.title || "N/A",
+      status: cls.status,
+      Student: {
+        id: cls.Student?.id || null,
+        name: cls.Student?.name || cls.student_name || "N/A",
+        email: cls.Student?.email || "N/A",
+      },
+      Tutor: {
+        id: cls.Tutor?.id || null,
+        name: cls.Tutor?.name || cls.tutor_name || "N/A",
+        email: cls.Tutor?.email || "N/A",
+      },
+    }));
+
+    return res.status(200).json({ classes: formatted });
+
   } catch (error) {
     return res.status(500).json({
       message: '❌ Failed to get classes',
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-// ✏️ Update Class Details
+// ✏ Update Class Details
 export const updateClass = async (req, res) => {
   const { id } = req.params;
-  const { title, date_time, zoom_link, status } = req.body;
+  const { name, date_time, zoom_link, status, subject } = req.body;
   const userId = req.user.id;
   const role = req.user.role;
 
@@ -154,7 +204,10 @@ export const updateClass = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized to update this class' });
     }
 
-    if (title) scheduledClass.title = title;
+    if (name) {
+      scheduledClass.title = name;
+      scheduledClass.subject = name;
+    }
     if (date_time) scheduledClass.date_time = date_time;
     if (zoom_link) scheduledClass.zoom_link = zoom_link;
     if (status) scheduledClass.status = status;
@@ -210,8 +263,8 @@ export const getAllClasses = async (req, res) => {
     const allClasses = await ClassSchedule.findAll({
       order: [['date_time', 'DESC']],
       include: [
-        { model: User, as: 'Tutor', attributes: ['id', 'email', 'mobile_number'] },
-        { model: User, as: 'Student', attributes: ['id', 'email', 'mobile_number'] }
+        { model: User, as: 'Tutor', attributes: ['id', 'email', 'mobile_number', 'name'] },
+        { model: User, as: 'Student', attributes: ['id', 'email', 'mobile_number', 'name'] }
       ]
     });
 

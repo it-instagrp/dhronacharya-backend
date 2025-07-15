@@ -8,6 +8,10 @@ const User = sequelize.define('User', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
+  name: {  // ✅ NEW FIELD ADDED
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
   email: {
     type: DataTypes.STRING(255),
     allowNull: true,

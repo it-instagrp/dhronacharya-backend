@@ -15,6 +15,7 @@ import tutorRoutes from './tutor.routes.js';
 import adminRoutes from './admin.routes.js';
 import searchRoutes from './search.routes.js';
 import billingRoutes from './billing.routes.js'; // ✅ Correct
+import bookmarkRoutes from './bookmark.routes.js'; // ✅ Added
 
 
 /**
@@ -39,6 +40,7 @@ const routes = () => {
   router.use('/tutors', tutorRoutes);
   router.use('/search', searchRoutes);
   router.use('/billing', billingRoutes); 
+   router.use('/bookmarks', bookmarkRoutes);
 
   return router;
 };

@@ -13,7 +13,7 @@ import Location from './Location.js';
 import Enquiry from './enquiry.js';
 import ClassSchedule from './classSchedule.js';
 import Message from './message.js';
-
+import Bookmark from './bookmark.js';
 
 const db = {};
 db.sequelize = sequelize;
@@ -88,6 +88,15 @@ Message.belongsTo(db.Enquiry, { foreignKey: 'enquiry_id' });
 
 db.User.hasMany(Message, { foreignKey: 'sender_id' });
 Message.belongsTo(db.User, { foreignKey: 'sender_id' });
+
+// bookmarks
+db.Bookmark = Bookmark;
+
+db.User.hasMany(Bookmark, { foreignKey: 'user_id', as: 'Bookmarks' });
+db.User.hasMany(Bookmark, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedBy' });
+
+Bookmark.belongsTo(db.User, { foreignKey: 'user_id', as: 'User' });
+Bookmark.belongsTo(db.User, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedUser' });
 
 sequelize.sync().then(()=>console.log("Model Synced"));
 
