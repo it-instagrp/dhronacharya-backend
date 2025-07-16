@@ -4,15 +4,19 @@ import { v4 as uuidv4 } from 'uuid';
 // ✅ POST /api/subscriptions/add-defaults
 export const addDefaultPlans = async (req, res) => {
   try {
+    // 🔥 Remove existing student plans before inserting new ones
+    await SubscriptionPlan.destroy({ where: { user_type: 'student' } });
+
     const defaultPlans = [
+      // ✅ New Student Plans
       {
         id: uuidv4(),
-        plan_name: 'Basic Plan',
-        price: 500,
+        plan_name: 'Silver Plan',
+        price: 250,
         duration_days: 30,
-        contact_limit: 3,
+        contact_limit: 2,
         features: [
-          '3 Contact Views',
+          '2 Contact Views',
           'Instant Contact Access',
           'SMS/Email Alerts',
           '30-day validity'
@@ -20,6 +24,41 @@ export const addDefaultPlans = async (req, res) => {
         plan_type: 'monthly',
         user_type: 'student'
       },
+      {
+        id: uuidv4(),
+        plan_name: 'Gold Plan',
+        price: 500,
+        duration_days: 90,
+        contact_limit: 5,
+        features: [
+          '5 Contact Views',
+          'Instant Contact Access',
+          'SMS/Email Alerts',
+          'Parent Can Contact',
+          '90-day validity'
+        ],
+        plan_type: 'quarterly',
+        user_type: 'student'
+      },
+      {
+        id: uuidv4(),
+        plan_name: 'Platinum Plan',
+        price: 800,
+        duration_days: 180,
+        contact_limit: 10,
+        features: [
+          '10 Contact Views',
+          'Instant Contact Access',
+          'SMS/Email Alerts',
+          'Parent Can Contact',
+          '15min Early Notification',
+          '180-day validity'
+        ],
+        plan_type: 'half-yearly',
+        user_type: 'student'
+      },
+
+      // 🔒 Existing Tutor Plans (unchanged)
       {
         id: uuidv4(),
         plan_name: 'Silver Plan',
