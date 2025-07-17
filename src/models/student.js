@@ -35,16 +35,30 @@ location_id: {
     key: 'id'
   }
 },
-preferred_modes: {
+class_modes: {
   type: DataTypes.ARRAY(DataTypes.STRING), // ['Online', 'Offline']
   allowNull: true
 },
-// Add to both Student and Tutor models
+
 profile_photo: {
   type: DataTypes.STRING,
   allowNull: true,
 },
 
+languages: {
+  type: DataTypes.ARRAY(DataTypes.JSON), // [{ language, proficiency }]
+  allowNull: true
+}
+,
+school_name: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
+
+sms_alerts: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+},
 
 }, {
   tableName: 'students',

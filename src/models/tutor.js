@@ -78,7 +78,18 @@ profile_photo: {
   type: DataTypes.STRING,
   allowNull: true,
 },
-
+school_name: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
+degree_status: {
+  type: DataTypes.STRING,
+  allowNull: true
+},
+sms_alerts: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+},
 
 }, {
   tableName: 'tutors',

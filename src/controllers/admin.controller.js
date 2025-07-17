@@ -37,7 +37,23 @@ export const getAllStudents = async (req, res) => {
 export const getAllTutors = async (req, res) => {
   try {
     const tutors = await Tutor.findAll({
-      attributes: ['user_id', 'name', 'subjects', 'classes', 'degrees', 'profile_status', 'profile_photo'], // 🆕 include photo
+      attributes: [
+        'user_id',
+        'name',
+        'subjects',
+        'classes',
+        'degrees',
+        'profile_status',
+        'profile_photo',
+        'languages',
+        'experience',
+        'pricing_per_hour',
+        'teaching_modes',
+        'introduction_video',
+        'documents',
+        'createdAt',
+        'updatedAt'
+      ],
       include: [
         { model: User, attributes: ['id', 'email', 'mobile_number', 'is_active'] },
         Location
@@ -48,6 +64,7 @@ export const getAllTutors = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch tutors', error: error.message });
   }
 };
+
 
 // ✅ Update Tutor Status (approve/reject)
 export const updateTutorStatus = async (req, res) => {
@@ -256,5 +273,22 @@ export const adminDeleteProfilePhoto = async (req, res) => {
     res.status(200).json({ message: 'Profile photo deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete profile photo', error: error.message });
+  }
+};
+
+// src/controllers/admin.controller.js
+export const getContactLogs = async (req, res) => {
+  try {
+    const logs = await db.ContactLog.findAll({
+      include: [
+        { model: db.User, as: 'Viewer', attributes: ['id', 'email', 'role'] },
+        { model: db.User, as: 'Target', attributes: ['id', 'email', 'role'] },
+      ],
+      order: [['timestamp', 'DESC']]
+    });
+
+    return res.status(200).json({ logs });
+  } catch (err) {
+    return res.status(500).json({ message: 'Failed to fetch contact logs', error: err.message });
   }
 };

@@ -10,28 +10,77 @@ const { User, Tutor, Student, Location } = db;
 // 🔍 GET profile
 export const getProfile = async (req, res) => {
   const { user } = req;
+
   try {
     let profile;
+
     if (user.role === 'tutor') {
       profile = await Tutor.findOne({
         where: { user_id: user.id },
-        include: [Location, { model: User, attributes: ['email', 'mobile_number'] }]
-      });
-    } else if (user.role === 'student') {
-      profile = await Student.findOne({
-        where: { user_id: user.id },
-        include: [Location, { model: User, attributes: ['email', 'mobile_number'] }]
+        attributes: [
+          'user_id',
+          'name',
+          'subjects',
+          'classes',
+          'degrees',
+          'introduction_video',
+          'profile_status',
+          'documents',
+          'school_name',               // ✅ missing field
+          'degree_status',             // ✅ missing field
+          'teaching_modes',            // ✅ missing field
+          'experience',                // ✅ already present
+          'sms_alerts',                // ✅ missing field
+          'pricing_per_hour',          // ✅ present
+          'languages',                 // ✅ present
+          'profile_photo',
+          'location_id',
+          'created_at',
+          'updated_at'
+        ],
+        include: [
+          {
+            model: User,
+            attributes: ['id', 'email', 'mobile_number', 'is_active']
+          },
+          Location
+        ]
       });
     }
-    return res.status(HttpStatus.OK).json({ profile });
+
+    else if (user.role === 'student') {
+      profile = await Student.findOne({
+        where: { user_id: user.id },
+        attributes: [
+          'user_id',
+          'name',
+          'class',
+          'subjects',
+          'class_modes',
+          'sms_alerts',
+          'languages',
+          'location_id',
+          'profile_photo',
+          'created_at',
+          'updated_at'
+        ],
+        include: [
+          {
+            model: User,
+            attributes: ['id', 'email', 'mobile_number', 'is_active']
+          },
+          Location
+        ]
+      });
+    }
+
+    return res.status(200).json({ profile });
   } catch (err) {
-    logger.error('Profile fetch error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-      message: 'Failed to fetch profile',
-      error: err.message
-    });
+    console.error('❌ Profile fetch error:', err);
+    return res.status(500).json({ message: 'Failed to fetch profile', error: err.message });
   }
 };
+
 
 // 🌍 Update Location
 export const updateLocation = async (req, res) => {
@@ -188,6 +237,8 @@ export const deleteUserAndProfile = async (req, res) => {
 };
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+// const BASE_URL = `${process.env.APP_HOST}:${process.env.APP_PORT}`;
+
 
 // ✅ Upload/Update Profile Photo
 export const updateProfilePhoto = async (req, res) => {
@@ -196,7 +247,7 @@ export const updateProfilePhoto = async (req, res) => {
   if (!file) return res.status(400).json({ message: 'No file uploaded' });
 
   try {
-    const photoPath = `/uploads/profile_photos/${file.filename}`;
+    const photoPath = `${BASE_URL}/uploads/profile_photos/${file.filename}`;
     if (user.role === 'student') {
       await Student.update({ profile_photo: photoPath }, { where: { user_id: user.id } });
     } else if (user.role === 'tutor') {
@@ -225,7 +276,9 @@ export const deleteProfilePhoto = async (req, res) => {
     }
 
     if (photoPath) {
-      const filePath = path.join(process.cwd(), photoPath);
+      // Strip BASE_URL from URL before deletion
+      const relativePath = photoPath.replace(BASE_URL, '');
+      const filePath = path.join(process.cwd(), relativePath);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
@@ -234,6 +287,7 @@ export const deleteProfilePhoto = async (req, res) => {
     return res.status(500).json({ message: 'Error deleting profile photo', error: error.message });
   }
 };
+
 
 // ✅ Upload Tutor Documents
 export const uploadTutorDocuments = async (req, res) => {
@@ -256,14 +310,14 @@ export const uploadTutorDocuments = async (req, res) => {
 
       // Remove old
       if (currentDocs[fieldName]) {
-        const oldPath = path.join(process.cwd(), currentDocs[fieldName].url);
+        const oldPath = path.join(process.cwd(), currentDocs[fieldName].url.replace(BASE_URL, ''));
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
 
-      // Save new
+      // Save new with absolute URL
       currentDocs[fieldName] = {
         name: file.originalname,
-        url: `/uploads/documents/${file.filename}`
+        url: `${BASE_URL}/uploads/documents/${file.filename}`
       };
     }
 
@@ -275,6 +329,7 @@ export const uploadTutorDocuments = async (req, res) => {
     res.status(500).json({ message: 'Upload failed', error: error.message });
   }
 };
+
 
 // ✅ Delete Specific Tutor Document
 export const deleteTutorDocument = async (req, res) => {
@@ -288,7 +343,10 @@ export const deleteTutorDocument = async (req, res) => {
       return res.status(404).json({ message: `Document "${type}" not found` });
     }
 
-    const docPath = path.join(process.cwd(), tutor.documents[type].url);
+    const docURL = tutor.documents[type].url;
+    const relativePath = docURL.replace(BASE_URL, '');
+    const docPath = path.join(process.cwd(), relativePath);
+
     if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
 
     delete tutor.documents[type];
