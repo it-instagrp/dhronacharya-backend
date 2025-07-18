@@ -14,16 +14,18 @@ import Enquiry from './enquiry.js';
 import ClassSchedule from './classSchedule.js';
 import Message from './message.js';
 import Bookmark from './bookmark.js';
+import Conversation from './conversation.js';
 
 const db = {};
 db.sequelize = sequelize;
 
+// Core models
 db.User = User;
 db.Admin = Admin;
 db.Tutor = Tutor;
 db.Student = Student;
 
-// Define associations
+// Role associations
 db.User.hasOne(db.Admin, { foreignKey: 'user_id' });
 db.User.hasOne(db.Tutor, { foreignKey: 'user_id' });
 db.User.hasOne(db.Student, { foreignKey: 'user_id' });
@@ -32,15 +34,20 @@ db.Admin.belongsTo(db.User, { foreignKey: 'user_id' });
 db.Tutor.belongsTo(db.User, { foreignKey: 'user_id' });
 db.Student.belongsTo(db.User, { foreignKey: 'user_id' });
 
-// after other imports and definitions
+// Other models
 db.SubscriptionPlan = SubscriptionPlan;
 db.Payment = Payment;
 db.UserSubscription = UserSubscription;
 db.Coupon = Coupon;
 db.Notification = Notification;
+db.Location = Location;
+db.Enquiry = Enquiry;
+db.ClassSchedule = ClassSchedule;
+db.Message = Message;
+db.Bookmark = Bookmark;
+db.Conversation = Conversation;
 
-// Associations
-
+// Subscription & payment
 db.User.hasMany(db.Payment, { foreignKey: 'user_id' });
 db.Payment.belongsTo(db.User, { foreignKey: 'user_id' });
 
@@ -56,48 +63,53 @@ db.UserSubscription.belongsTo(db.SubscriptionPlan, { foreignKey: 'plan_id' });
 db.Payment.hasOne(db.UserSubscription, { foreignKey: 'payment_id' });
 db.UserSubscription.belongsTo(db.Payment, { foreignKey: 'payment_id' });
 
+// Notifications
 db.User.hasMany(db.Notification, { foreignKey: 'user_id' });
 db.Notification.belongsTo(db.User, { foreignKey: 'user_id' });
 
-db.Coupon; // standalone model, use as needed
-
-db.Location = Location;
-
+// Locations
 db.Tutor.belongsTo(db.Location, { foreignKey: 'location_id' });
 db.Student.belongsTo(db.Location, { foreignKey: 'location_id' });
-db.Enquiry = Enquiry;
 
-db.User.hasMany(Enquiry, { foreignKey: 'sender_id', as: 'SentEnquiries' });
-db.User.hasMany(Enquiry, { foreignKey: 'receiver_id', as: 'ReceivedEnquiries' });
+// Enquiries
+db.User.hasMany(db.Enquiry, { foreignKey: 'sender_id', as: 'SentEnquiries' });
+db.User.hasMany(db.Enquiry, { foreignKey: 'receiver_id', as: 'ReceivedEnquiries' });
 
-Enquiry.belongsTo(db.User, { foreignKey: 'sender_id', as: 'Sender' });
-Enquiry.belongsTo(db.User, { foreignKey: 'receiver_id', as: 'Receiver' });
- //class schedules 
-db.ClassSchedule = ClassSchedule;
+db.Enquiry.belongsTo(db.User, { foreignKey: 'sender_id', as: 'Sender' });
+db.Enquiry.belongsTo(db.User, { foreignKey: 'receiver_id', as: 'Receiver' });
 
-db.User.hasMany(ClassSchedule, { foreignKey: 'tutor_id', as: 'TutorClasses' });
-db.User.hasMany(ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasses' });
+// Class schedules
+db.User.hasMany(db.ClassSchedule, { foreignKey: 'tutor_id', as: 'TutorClasses' });
+db.User.hasMany(db.ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasses' });
 
-ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
-ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
+db.ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
+db.ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
 
-db.Message = Message;
+// Messages (enquiry-threaded)
+db.Enquiry.hasMany(db.Message, { foreignKey: 'enquiry_id', as: 'Messages' });
+db.Message.belongsTo(db.Enquiry, { foreignKey: 'enquiry_id' });
 
-db.Enquiry.hasMany(Message, { foreignKey: 'enquiry_id', as: 'Messages' });
-Message.belongsTo(db.Enquiry, { foreignKey: 'enquiry_id' });
+db.User.hasMany(db.Message, { foreignKey: 'sender_id' });
+db.Message.belongsTo(db.User, { foreignKey: 'sender_id' });
 
-db.User.hasMany(Message, { foreignKey: 'sender_id' });
-Message.belongsTo(db.User, { foreignKey: 'sender_id' });
+// ✅ Conversations (direct bookmark chat)
+db.User.hasMany(db.Conversation, { foreignKey: 'student_id', as: 'StudentConversations' });
+db.User.hasMany(db.Conversation, { foreignKey: 'tutor_id', as: 'TutorConversations' });
 
-// bookmarks
-db.Bookmark = Bookmark;
+db.Conversation.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
+db.Conversation.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
 
-db.User.hasMany(Bookmark, { foreignKey: 'user_id', as: 'Bookmarks' });
-db.User.hasMany(Bookmark, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedBy' });
+db.Conversation.hasMany(db.Message, { foreignKey: 'conversation_id', as: 'Messages' });
+db.Message.belongsTo(db.Conversation, { foreignKey: 'conversation_id' });
 
-Bookmark.belongsTo(db.User, { foreignKey: 'user_id', as: 'User' });
-Bookmark.belongsTo(db.User, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedUser' });
+// Bookmarks
+db.User.hasMany(db.Bookmark, { foreignKey: 'user_id', as: 'Bookmarks' });
+db.User.hasMany(db.Bookmark, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedBy' });
 
-sequelize.sync().then(()=>console.log("Model Synced"));
+db.Bookmark.belongsTo(db.User, { foreignKey: 'user_id', as: 'User' });
+db.Bookmark.belongsTo(db.User, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedUser' });
+
+// Sync
+sequelize.sync().then(() => console.log('Models Synced'));
 
 export default db;

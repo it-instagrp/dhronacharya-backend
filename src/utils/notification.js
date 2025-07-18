@@ -54,3 +54,4 @@ const sendWhatsApp = async (phoneNumber, message) => {
     throw new Error('WhatsApp sending failed');
   }
 };
+

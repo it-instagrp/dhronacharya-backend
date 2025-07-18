@@ -9,7 +9,11 @@ const Message = sequelize.define('Message', {
   },
   enquiry_id: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true,  // ✅ Now optional for direct chat
+  },
+  conversation_id: {
+    type: DataTypes.UUID,
+    allowNull: true,  // ✅ For direct student-tutor chat
   },
   sender_id: {
     type: DataTypes.UUID,
@@ -21,11 +25,18 @@ const Message = sequelize.define('Message', {
   },
   created_at: {
     type: DataTypes.DATE,
+    allowNull: false,
     defaultValue: DataTypes.NOW,
   },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: false,
+    defaultValue: DataTypes.NOW,
+  }
 }, {
   tableName: 'messages',
-  timestamps: false,
+  timestamps: false, // ✅ Keep false because we define columns manually
+  underscored: true,
 });
 
 export default Message;

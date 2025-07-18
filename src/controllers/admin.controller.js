@@ -6,6 +6,7 @@ import db from '../models/index.js';
 import { Op } from 'sequelize';
 import fs from 'fs';
 import path from 'path';
+import { sendNotification } from '../utils/notification.js';
 
 const {
   User,
@@ -290,5 +291,92 @@ export const getContactLogs = async (req, res) => {
     return res.status(200).json({ logs });
   } catch (err) {
     return res.status(500).json({ message: 'Failed to fetch contact logs', error: err.message });
+  }
+};
+
+
+// ✅ Send message/alert to a single user (tutor or student)
+export const sendUserMessage = async (req, res) => {
+  const { user_id, type, template_name, content } = req.body;
+
+  try {
+    const user = await db.User.findByPk(user_id);
+    if (!user || !['tutor', 'student'].includes(user.role)) {
+      return res.status(404).json({ message: 'User not found or invalid role' });
+    }
+
+    // Save & send notification
+    const notification = await db.Notification.create({
+      user_id,
+      type,
+      template_name,
+      recipient: user.email || user.mobile_number,
+      content,
+      status: 'pending',
+    });
+
+    await sendNotification({
+      type,
+      recipient: user.email || user.mobile_number,
+      subject: template_name,
+      content: typeof content === 'object' ? content.message : content,
+    });
+
+    notification.status = 'sent';
+    notification.sent_at = new Date();
+    await notification.save();
+
+    res.status(200).json({ message: `${type} sent to ${user.role}`, notification });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to send message', error: error.message });
+  }
+};
+// ✅ Bulk send to tutors or students based on role and optional filter
+export const sendBulkUserMessage = async (req, res) => {
+  const { role, type, template_name, content, filter = {} } = req.body;
+
+  try {
+    if (!['tutor', 'student'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be tutor or student' });
+    }
+
+    // Build filter
+    const userWhere = { role, is_active: true };
+    const profileInclude = {
+      model: role === 'tutor' ? db.Tutor : db.Student,
+      where: filter,
+    };
+
+    const users = await db.User.findAll({
+      where: userWhere,
+      include: [profileInclude],
+    });
+
+    const sentTo = [];
+
+    for (const user of users) {
+      await db.Notification.create({
+        user_id: user.id,
+        type,
+        template_name,
+        recipient: user.email || user.mobile_number,
+        content,
+        status: 'sent',
+        sent_at: new Date(),
+      });
+
+      await sendNotification({
+        type,
+        recipient: user.email || user.mobile_number,
+        subject: template_name,
+        content: typeof content === 'object' ? content.message : content,
+      });
+
+      sentTo.push({ id: user.id, email: user.email });
+    }
+
+    res.json({ message: `Message sent to ${sentTo.length} ${role}s`, recipients: sentTo });
+  } catch (err) {
+    res.status(500).json({ message: 'Bulk message failed', error: err.message });
   }
 };

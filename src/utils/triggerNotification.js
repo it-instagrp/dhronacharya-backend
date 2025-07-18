@@ -1,10 +1,8 @@
 import db from '../models/index.js';
-import { sendNotification } from '../utils/notification.js';
+import { sendNotification } from './notification.js';
 
-// ✅ API endpoint (NOT reused internally)
-export const createNotification = async (req, res) => {
-  const { user_id, type, template_name, recipient, content } = req.body;
-
+// ✅ Reusable notification helper for internal use
+export const triggerNotification = async ({ user_id, type, template_name, recipient, content }) => {
   try {
     const notification = await db.Notification.create({
       user_id,
@@ -26,9 +24,9 @@ export const createNotification = async (req, res) => {
     notification.sent_at = new Date();
     await notification.save();
 
-    res.json({ message: `${type} notification sent`, notification });
+    return notification;
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Failed to send notification', error: error.message });
+    console.error('❌ Failed to trigger notification:', error);
+    return null;
   }
 };

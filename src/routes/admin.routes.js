@@ -14,8 +14,12 @@ import {
   getDashboardSummary,
    getPendingVerifications,
   verifyTutorProfile,
-  adminDeleteProfilePhoto
+  adminDeleteProfilePhoto,
+  sendUserMessage,
+  sendBulkUserMessage
 } from '../controllers/admin.controller.js';
+
+
 
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 
@@ -50,5 +54,8 @@ router.patch('/verifications/tutor/:user_id', verifyTutorProfile);
 
 // 🧹 Admin delete user profile photo
 router.delete('/photo/:user_id/:role', authenticate, authorize(['admin']), adminDeleteProfilePhoto);
+
+router.post('/users/send-message', sendUserMessage); // individual tutor/student
+router.post('/users/send-bulk-message', sendBulkUserMessage); // bulk by role
 
 export default router;

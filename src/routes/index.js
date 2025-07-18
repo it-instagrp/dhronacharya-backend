@@ -17,6 +17,7 @@ import searchRoutes from './search.routes.js';
 import billingRoutes from './billing.routes.js'; // ✅ Correct
 import bookmarkRoutes from './bookmark.routes.js'; // ✅ Added
 import recommendationRoutes from './recommendation.routes.js'; // ✅ New line
+import conversationRoutes from './conversation.routes.js';
 
 
 
@@ -44,6 +45,7 @@ const routes = () => {
   router.use('/billing', billingRoutes);
    router.use('/bookmarks', bookmarkRoutes);
   router.use('/recommendations', recommendationRoutes);
+  router.use('/conversations', conversationRoutes);
 
   return router;
 };

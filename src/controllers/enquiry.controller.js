@@ -1,7 +1,7 @@
 import db from '../models/index.js';
 import { sendEmail } from '../utils/email.js';
 import { sendWhatsApp } from '../utils/whatsapp.js';
-import { createNotification } from './notification.controller.js';
+import { triggerNotification } from '../utils/triggerNotification.js'; // ✅ Updated import
 
 const { Enquiry, User, Tutor } = db;
 
@@ -71,8 +71,8 @@ export const createEnquiry = async (req, res) => {
       await sendWhatsApp(receiver.mobile_number, message);
     }
 
-    // Store Notification
-    await createNotification({
+    // ✅ Trigger Notification
+    await triggerNotification({
       user_id: receiver.id,
       type: 'email',
       template_name: 'new_enquiry',
@@ -127,6 +127,7 @@ export const getEnquiries = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch enquiries', error: err.message });
   }
 };
+
 // Update Enquiry with Response Message
 export const updateEnquiryStatus = async (req, res) => {
   const { id } = req.params;
@@ -162,7 +163,8 @@ export const updateEnquiryStatus = async (req, res) => {
       await sendWhatsApp(receiver.mobile_number, notifyMessage);
     }
 
-    await createNotification({
+    // ✅ Trigger Notification
+    await triggerNotification({
       user_id: receiver.id,
       type: 'email',
       template_name: 'enquiry_response',
