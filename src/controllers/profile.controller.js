@@ -57,6 +57,7 @@ export const getProfile = async (req, res) => {
           'class',
           'subjects',
           'class_modes',
+          'school_name',
           'sms_alerts',
           'languages',
           'location_id',
@@ -107,12 +108,28 @@ export const updateLocation = async (req, res) => {
 };
 
 // ✏ Update Student Profile
+// ✏ Update Student Profile
 export const updateStudentProfile = async (req, res) => {
-  const { name, class: studentClass, subjects, class_modes, place_id, sms_alerts, total_experience_years, languages } = req.body;
+  const {
+    name,
+    class: studentClass,
+    subjects,
+    class_modes,
+    place_id,
+    sms_alerts,
+    languages,
+    school_name // ✅ Added support for this field
+  } = req.body;
+
   const { id: user_id, role } = req.user;
-  if (role !== 'student') return res.status(403).json({ message: 'Only students can update this profile' });
+
+  // 🚫 Only students can update student profile
+  if (role !== 'student') {
+    return res.status(403).json({ message: 'Only students can update this profile' });
+  }
 
   try {
+    // 📍 Handle location update via place_id if provided
     let location = null;
     if (place_id) {
       const locationDetails = await getPlaceDetailsFromGoogle(place_id);
@@ -120,26 +137,57 @@ export const updateStudentProfile = async (req, res) => {
       location = loc;
     }
 
+    // 🔍 Find existing student profile
     let student = await Student.findOne({ where: { user_id } });
+
+    // 🧩 Build payload to update/create
     const payload = {
       name,
       class: studentClass,
       subjects,
       class_modes,
-      location_id: location?.id || student?.location_id || null,
       sms_alerts,
-      total_experience_years,
-      languages
+      languages,
+      school_name, // ✅ Include school_name
+      location_id: location?.id || student?.location_id || null
     };
 
     if (student) {
+      // 🔄 Update existing
       await Student.update(payload, { where: { user_id } });
     } else {
+      // ➕ Create new
       await Student.create({ user_id, ...payload });
     }
 
-    const profile = await Student.findOne({ where: { user_id }, include: [Location] });
+    // 🔁 Return updated profile
+    const profile = await Student.findOne({
+      where: { user_id },
+      attributes: [
+        'user_id',
+        'name',
+        'class',
+        'subjects',
+        'class_modes',
+        'sms_alerts',
+        'languages',
+        'location_id',
+        'school_name', // ✅ Added here too
+        'profile_photo',
+        'created_at',
+        'updated_at'
+      ],
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'email', 'mobile_number', 'is_active']
+        },
+        Location
+      ]
+    });
+
     return res.status(200).json({ message: 'Student profile updated', profile });
+
   } catch (error) {
     return res.status(500).json({ message: 'Error saving student profile', error: error.message });
   }

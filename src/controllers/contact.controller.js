@@ -7,14 +7,29 @@ const { UserSubscription, User } = db;
 export const viewContact = async (req, res) => {
   const { id: targetUserId } = req.params;
   const viewerUserId = req.user.id;
-  const { subscription } = req; // Set by middleware
+  const { subscription } = req; // Set by middleware (can be null/undefined)
 
   try {
-    // Don't allow viewing own contact
+    // 🚫 Prevent viewing own contact
     if (viewerUserId === targetUserId) {
       return res.status(400).json({ message: 'You cannot view your own contact info.' });
     }
 
+    // ❌ If no active subscription
+    if (!subscription) {
+      return res.status(403).json({
+        message: 'You cannot view contact details until you subscribe.'
+      });
+    }
+
+    // ❌ If subscription has 0 contacts remaining
+    if (subscription.contacts_remaining <= 0) {
+      return res.status(403).json({
+        message: 'You have reached your contact view limit. Please upgrade your subscription.'
+      });
+    }
+
+    // ✅ Find the target user
     const targetUser = await User.findByPk(targetUserId, {
       attributes: ['id', 'email', 'mobile_number', 'role', 'is_active']
     });
@@ -23,7 +38,7 @@ export const viewContact = async (req, res) => {
       return res.status(404).json({ message: 'Target user not found or inactive.' });
     }
 
-    // Decrement contacts remaining
+    // ✅ Decrement contact view count
     subscription.contacts_remaining -= 1;
     await subscription.save();
 

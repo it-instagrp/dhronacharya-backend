@@ -1,14 +1,18 @@
-import SubscriptionPlan from '../models/subscriptionPlan.js';
-import { v4 as uuidv4 } from 'uuid';
+// src/controllers/subscription.controller.js
 
-// ✅ POST /api/subscriptions/add-defaults
+import { v4 as uuidv4 } from 'uuid';
+import db from '../models/index.js';
+
+const { SubscriptionPlan, UserSubscription } = db;
+
+// ✅ Add Default Subscription Plans
 export const addDefaultPlans = async (req, res) => {
   try {
-    // 🔥 Remove existing student plans before inserting new ones
+    // Remove only student plans before inserting new ones
     await SubscriptionPlan.destroy({ where: { user_type: 'student' } });
 
     const defaultPlans = [
-      // ✅ New Student Plans
+      // 🎓 Student Plans
       {
         id: uuidv4(),
         plan_name: 'Silver Plan',
@@ -58,7 +62,7 @@ export const addDefaultPlans = async (req, res) => {
         user_type: 'student'
       },
 
-      // 🔒 Existing Tutor Plans (unchanged)
+      // 👨‍🏫 Tutor Plans (unchanged)
       {
         id: uuidv4(),
         plan_name: 'Silver Plan',
@@ -112,11 +116,11 @@ export const addDefaultPlans = async (req, res) => {
     await SubscriptionPlan.bulkCreate(defaultPlans);
 
     return res.status(201).json({
-      message: 'Default subscription plans added successfully',
+      message: '✅ Default subscription plans added successfully',
       plans: defaultPlans
     });
   } catch (error) {
-    console.error('Error inserting plans:', error);
+    console.error('❌ Error inserting plans:', error);
     return res.status(500).json({
       message: 'Failed to insert default plans',
       error: error.message
@@ -124,25 +128,49 @@ export const addDefaultPlans = async (req, res) => {
   }
 };
 
-// ✅ GET /api/subscriptions/:type → tutor or student
+// ✅ Get Plans by User Type (tutor/student)
 export const getPlansByUserType = async (req, res) => {
   try {
     const { type } = req.params;
 
     if (!['tutor', 'student'].includes(type)) {
-      return res.status(400).json({ message: 'Invalid user type' });
+      return res.status(400).json({ message: 'Invalid user type. Must be "tutor" or "student".' });
     }
 
     const plans = await SubscriptionPlan.findAll({
-      where: { user_type: type }
+      where: { user_type: type },
+      order: [['price', 'ASC']]
     });
 
     return res.status(200).json({ plans });
   } catch (error) {
-    console.error('Error fetching plans:', error);
+    console.error('❌ Error fetching plans:', error);
     return res.status(500).json({
       message: 'Failed to fetch plans',
       error: error.message
+    });
+  }
+};
+
+// ✅ Get Current User's Subscription Status
+export const getSubscriptionStatus = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const activeSub = await UserSubscription.findOne({
+      where: { user_id: userId, is_active: true },
+      include: [SubscriptionPlan]
+    });
+
+    return res.status(200).json({
+      isSubscribed: !!activeSub,
+      subscription: activeSub || null
+    });
+  } catch (err) {
+    console.error('❌ Error fetching subscription status:', err);
+    return res.status(500).json({
+      message: 'Failed to fetch subscription status',
+      error: err.message
     });
   }
 };
