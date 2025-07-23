@@ -15,6 +15,7 @@ import ClassSchedule from './classSchedule.js';
 import Message from './message.js';
 import Bookmark from './bookmark.js';
 import Conversation from './conversation.js';
+import ReferralCode from './referralCode.model.js';
 
 const db = {};
 db.sequelize = sequelize;
@@ -108,6 +109,22 @@ db.User.hasMany(db.Bookmark, { foreignKey: 'bookmarked_user_id', as: 'Bookmarked
 
 db.Bookmark.belongsTo(db.User, { foreignKey: 'user_id', as: 'User' });
 db.Bookmark.belongsTo(db.User, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedUser' });
+
+// referral
+db.ReferralCode = ReferralCode;
+
+// Referral Code associations
+db.User.hasMany(db.ReferralCode, { foreignKey: 'referrer_user_id', as: 'ReferralCodes' });
+db.User.hasMany(db.ReferralCode, { foreignKey: 'referred_user_id', as: 'ReferredBy' });
+
+db.ReferralCode.belongsTo(db.User, { foreignKey: 'referrer_user_id', as: 'Referrer' });
+db.ReferralCode.belongsTo(db.User, { foreignKey: 'referred_user_id', as: 'Referred' });
+
+// cupons 
+// Coupon associations
+db.User.hasMany(db.Coupon, { foreignKey: 'applied_by_user_id', as: 'UsedCoupons' });
+db.Coupon.belongsTo(db.User, { foreignKey: 'applied_by_user_id', as: 'UsedBy' });
+
 
 // Sync
 sequelize.sync().then(() => console.log('Models Synced'));

@@ -19,6 +19,8 @@ import bookmarkRoutes from './bookmark.routes.js';
 import recommendationRoutes from './recommendation.routes.js';
 import conversationRoutes from './conversation.routes.js';
 import adminSubscriptionRoutes from './admin.subscription.js';   // ✅ renamed
+import referralRoutes from './referral.routes.js';
+
 
 const routes = () => {
   router.get('/', (req, res) => {
@@ -42,6 +44,8 @@ const routes = () => {
   router.use('/recommendations', recommendationRoutes);
   router.use('/conversations', conversationRoutes);
   router.use('/admin/subscriptions', adminSubscriptionRoutes);  // ✅ correct
+  router.use('/referrals', referralRoutes);
+
 
   return router;
 };
