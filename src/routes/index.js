@@ -20,6 +20,9 @@ import recommendationRoutes from './recommendation.routes.js';
 import conversationRoutes from './conversation.routes.js';
 import adminSubscriptionRoutes from './admin.subscription.js';   // ✅ renamed
 import referralRoutes from './referral.routes.js';
+import couponRoutes from './coupon.route.js';
+import analyticsRoutes from './analytics.routes.js';
+
 
 
 const routes = () => {
@@ -45,7 +48,9 @@ const routes = () => {
   router.use('/conversations', conversationRoutes);
   router.use('/admin/subscriptions', adminSubscriptionRoutes);  // ✅ correct
   router.use('/referrals', referralRoutes);
-
+  router.use('/coupons', couponRoutes);
+  router.use('/analytics', analyticsRoutes);
+  
 
   return router;
 };

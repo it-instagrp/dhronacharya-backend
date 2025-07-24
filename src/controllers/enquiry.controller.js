@@ -99,11 +99,11 @@ export const getEnquiries = async (req, res) => {
           as: 'Receiver',
           attributes: ['id', 'email', 'role'],
           include: [
-            { model: db.Tutor, attributes: ['name'] },
-            { model: db.Student, attributes: ['name'] },
-          ],
-        },
-      ],
+            { model: db.Tutor, attributes: ['name'], required: false },
+            { model: db.Student, attributes: ['name'], required: false }
+          ]
+        }
+      ]
     });
 
     const received = await db.Enquiry.findAll({
@@ -114,11 +114,11 @@ export const getEnquiries = async (req, res) => {
           as: 'Sender',
           attributes: ['id', 'email', 'role'],
           include: [
-            { model: db.Tutor, attributes: ['name'] },
-            { model: db.Student, attributes: ['name'] },
-          ],
-        },
-      ],
+            { model: db.Tutor, attributes: ['name'], required: false },
+            { model: db.Student, attributes: ['name'], required: false }
+          ]
+        }
+      ]
     });
 
     return res.status(200).json({ sent, received });
@@ -127,6 +127,7 @@ export const getEnquiries = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch enquiries', error: err.message });
   }
 };
+
 
 // Update Enquiry with Response Message
 export const updateEnquiryStatus = async (req, res) => {

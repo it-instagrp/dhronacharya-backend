@@ -57,6 +57,9 @@ export const getMyReferralCodes = async (req, res) => {
 /**
  * ✅ 3. Apply referral code (when user signs up or subscribes)
  */
+/**
+ * ✅ 3. Apply referral code (when user signs up or subscribes)
+ */
 export const applyReferralCode = async (req, res) => {
   const { code } = req.body;
   const { id: referredUserId } = req.user;
@@ -76,7 +79,34 @@ export const applyReferralCode = async (req, res) => {
     referral.status = 'converted';
     await referral.save();
 
-    return res.status(200).json({ message: 'Referral code applied.', referral });
+    // ✅ Auto-reward logic: notify the referrer
+    const referrer = await User.findByPk(referral.referrer_user_id);
+
+    if (referrer) {
+      const rewardMessage = `🎉 Congratulations! You've earned a reward for referring a user.`;
+
+      // Save reward details (optional: if these fields exist)
+      referral.reward_given = true;
+      referral.reward_type = 'coupon';
+      referral.reward_value = '25% off';
+      await referral.save();
+
+      // Send notification (email or SMS or WhatsApp)
+      await db.Notification.create({
+        user_id: referrer.id,
+        type: 'email',
+        template_name: 'Referral Reward',
+        recipient: referrer.email,
+        content: rewardMessage,
+        status: 'sent',
+        sent_at: new Date()
+      });
+
+      // Or use: await sendEmail(referrer.email, 'Referral Reward', rewardMessage);
+      // Or use: await sendWhatsApp(referrer.mobile_number, rewardMessage);
+    }
+
+    return res.status(200).json({ message: 'Referral code applied and reward issued.', referral });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error applying referral code.' });

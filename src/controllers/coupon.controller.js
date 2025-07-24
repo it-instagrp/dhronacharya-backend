@@ -1,6 +1,7 @@
 import db from '../models/index.js';
-const { Coupon, Sequelize } = db;
-const { Op } = Sequelize;
+import { Op, col } from 'sequelize';  // ✅ Recommended
+const { Coupon } = db;
+
 
 /**
  * ✅ Admin: Create Coupon
@@ -65,9 +66,10 @@ export const applyCoupon = async (req, res) => {
           { applicable_plan: plan } // optional plan check
         ],
         [Op.or]: [
-          { usage_limit: null },
-          { usage_limit: { [Op.gt]: Sequelize.col('used_count') } }
-        ]
+  { usage_limit: null },
+  { usage_limit: { [Op.gt]: col('used_count') } }  // ✅ FIXED
+]
+
       }
     });
 

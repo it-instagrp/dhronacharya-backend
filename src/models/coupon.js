@@ -37,10 +37,12 @@ const Coupon = sequelize.define('Coupon', {
     type: DataTypes.DATE,
     allowNull: false
   },
-  applicable_plan: {
-    type: DataTypes.ENUM('all', 'premium', 'featured', 'free'),
-    defaultValue: 'all'
-  },
+  // ✅ Update in src/models/coupon.model.js
+applicable_plan: {
+  type: DataTypes.STRING,
+  defaultValue: 'all'
+}
+,
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
