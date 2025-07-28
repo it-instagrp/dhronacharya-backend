@@ -125,3 +125,27 @@ export const deleteCoupon = async (req, res) => {
     return res.status(500).json({ message: 'Error deleting coupon' });
   }
 };
+
+// src/controllers/coupon.controller.js
+export const getAvailableCoupons = async (req, res) => {
+  try {
+    const today = new Date();
+
+    const coupons = await db.Coupon.findAll({
+      where: {
+        is_active: true,
+        valid_from: { [Op.lte]: today },
+        valid_until: { [Op.gte]: today },
+        [Op.or]: [
+          { usage_limit: null },
+          { usage_limit: { [Op.gt]: col('used_count') } }
+        ]
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json({ coupons });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error fetching coupons', error: error.message });
+  }
+};

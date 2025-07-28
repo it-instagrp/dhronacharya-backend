@@ -22,8 +22,7 @@ import adminSubscriptionRoutes from './admin.subscription.js';   // ✅ renamed
 import referralRoutes from './referral.routes.js';
 import couponRoutes from './coupon.route.js';
 import analyticsRoutes from './analytics.routes.js';
-
-
+import notificationRoutes from './notification.route.js';
 
 const routes = () => {
   router.get('/', (req, res) => {
@@ -50,7 +49,7 @@ const routes = () => {
   router.use('/referrals', referralRoutes);
   router.use('/coupons', couponRoutes);
   router.use('/analytics', analyticsRoutes);
-  
+  router.use('/notifications', notificationRoutes);
 
   return router;
 };

@@ -332,6 +332,7 @@ export const sendUserMessage = async (req, res) => {
   }
 };
 // ✅ Bulk send to tutors or students based on role and optional filter
+// ✅ Bulk send to tutors or students based on role and optional filter
 export const sendBulkUserMessage = async (req, res) => {
   const { role, type, template_name, content, filter = {} } = req.body;
 
@@ -340,21 +341,32 @@ export const sendBulkUserMessage = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role. Must be tutor or student' });
     }
 
-    // Build filter
     const userWhere = { role, is_active: true };
+
+    // Only apply filter if it's not empty
+    const includeModel = role === 'tutor' ? db.Tutor : db.Student;
     const profileInclude = {
-      model: role === 'tutor' ? db.Tutor : db.Student,
-      where: filter,
+      model: includeModel,
+      ...(Object.keys(filter).length ? { where: filter } : {}),
     };
+
+    console.log('🔍 Filter:', filter);
+    console.log('📤 Sending to:', role);
 
     const users = await db.User.findAll({
       where: userWhere,
       include: [profileInclude],
     });
 
+    if (!users.length) {
+      return res.status(404).json({ message: 'No users found for given filter' });
+    }
+
     const sentTo = [];
 
     for (const user of users) {
+      const messageContent = typeof content === 'object' ? content.message : content;
+
       await db.Notification.create({
         user_id: user.id,
         type,
@@ -369,14 +381,18 @@ export const sendBulkUserMessage = async (req, res) => {
         type,
         recipient: user.email || user.mobile_number,
         subject: template_name,
-        content: typeof content === 'object' ? content.message : content,
+        content: messageContent,
       });
 
       sentTo.push({ id: user.id, email: user.email });
     }
 
-    res.json({ message: `Message sent to ${sentTo.length} ${role}s`, recipients: sentTo });
+    res.status(200).json({
+      message: `✅ Message sent to ${sentTo.length} ${role}${sentTo.length > 1 ? 's' : ''}`,
+      recipients: sentTo,
+    });
   } catch (err) {
+    console.error('❌ Bulk message error:', err);
     res.status(500).json({ message: 'Bulk message failed', error: err.message });
   }
 };

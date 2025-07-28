@@ -15,7 +15,11 @@ export const generateReferralCode = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({ message: 'Referral code already exists.' });
+      // ✅ Show existing code instead of throwing error
+      return res.status(200).json({
+        message: 'Referral code already exists.',
+        referral: existing,
+      });
     }
 
     const code = `REF-${uuidv4().slice(0, 8).toUpperCase()}`;
@@ -143,21 +147,65 @@ export const markRewardGiven = async (req, res) => {
 
   try {
     const referral = await db.ReferralCode.findByPk(id);
-
     if (!referral) return res.status(404).json({ message: 'Referral not found.' });
 
+    const referrer = await db.User.findByPk(referral.referrer_user_id);
+    if (!referrer) return res.status(404).json({ message: 'Referrer not found.' });
+
+    // ✅ 1. CONTACT VIEW BONUS — for students
+    if (
+      reward_type === 'contact_view_bonus' &&
+      reward_value &&
+      !isNaN(parseInt(reward_value)) &&
+      referrer.role === 'student'
+    ) {
+      const student = await db.Student.findOne({ where: { user_id: referrer.id } });
+      if (student) {
+        const bonusViews = parseInt(reward_value);
+        student.contact_views_left = (student.contact_views_left || 0) + bonusViews;
+        await student.save();
+      }
+    }
+
+    // ✅ 2. SUBSCRIPTION BONUS — extend subscription
+    if (reward_type === 'subscription_bonus' && reward_value.includes('Days')) {
+      const bonusDays = parseInt(reward_value.split(' ')[0]);
+
+      const activeSubscription = await db.UserSubscription.findOne({
+        where: {
+          user_id: referral.referrer_user_id,
+          is_active: true,
+          end_date: { [db.Sequelize.Op.gt]: new Date() },
+        },
+      });
+
+      if (activeSubscription) {
+        const newEndDate = new Date(activeSubscription.end_date);
+        newEndDate.setDate(newEndDate.getDate() + bonusDays);
+        activeSubscription.end_date = newEndDate;
+        await activeSubscription.save();
+      }
+    }
+
+    // ✅ 3. DISCOUNT / COUPON REWARD (record only)
+    if (reward_type === 'coupon' || reward_type === 'discount') {
+      // You can attach it to a reward table or log it for future checkout logic
+      // No DB change here, just storing the values
+      console.log(`Apply coupon: ${reward_value} to user ID ${referrer.id}`);
+    }
+
+    // ✅ Finalize reward entry
     referral.reward_given = true;
     referral.reward_type = reward_type || null;
     referral.reward_value = reward_value || null;
-
     await referral.save();
 
     return res.status(200).json({
-      message: 'Referral marked as rewarded.',
-      referral
+      message: 'Referral rewarded successfully.',
+      referral,
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error updating referral.' });
+    return res.status(500).json({ message: 'Error processing referral reward.' });
   }
 };

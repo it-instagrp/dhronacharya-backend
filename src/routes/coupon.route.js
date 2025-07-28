@@ -4,7 +4,8 @@ import {
   getAllCoupons,
   applyCoupon,
   toggleCouponStatus,
-  deleteCoupon
+  deleteCoupon,
+  getAvailableCoupons
 } from '../controllers/coupon.controller.js';
 
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -23,5 +24,8 @@ router.delete('/:id', authenticate, authorize('admin'), deleteCoupon);       // 
  * ✅ User Route
  */
 router.post('/apply', authenticate, applyCoupon);                            // Apply coupon at checkout
+// ✅ Public route to get active coupons
+router.get('/available', getAvailableCoupons);
+
 
 export default router;
