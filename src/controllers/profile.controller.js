@@ -5,9 +5,14 @@ import fs from 'fs';
 import path from 'path';
 import { getPlaceDetailsFromGoogle } from '../utils/googlePlacesService.js';
 
+import { differenceInDays } from 'date-fns';
+
+
 const { User, Tutor, Student, Location } = db;
 
 // 🔍 GET profile
+// 🔍 GET profile with subscription status
+// 🔍 GET profile with subscription status and remaining days
 export const getProfile = async (req, res) => {
   const { user } = req;
 
@@ -18,25 +23,11 @@ export const getProfile = async (req, res) => {
       profile = await Tutor.findOne({
         where: { user_id: user.id },
         attributes: [
-          'user_id',
-          'name',
-          'subjects',
-          'classes',
-          'degrees',
-          'introduction_video',
-          'profile_status',
-          'documents',
-          'school_name',               // ✅ missing field
-          'degree_status',             // ✅ missing field
-          'teaching_modes',            // ✅ missing field
-          'experience',                // ✅ already present
-          'sms_alerts',                // ✅ missing field
-          'pricing_per_hour',          // ✅ present
-          'languages',                 // ✅ present
-          'profile_photo',
-          'location_id',
-          'created_at',
-          'updated_at'
+          'user_id', 'name', 'subjects', 'classes', 'degrees',
+          'introduction_video', 'profile_status', 'documents', 'school_name',
+          'degree_status', 'teaching_modes', 'experience', 'sms_alerts',
+          'pricing_per_hour', 'languages', 'profile_photo', 'location_id',
+          'created_at', 'updated_at'
         ],
         include: [
           {
@@ -46,24 +37,14 @@ export const getProfile = async (req, res) => {
           Location
         ]
       });
-    }
 
-    else if (user.role === 'student') {
+    } else if (user.role === 'student') {
       profile = await Student.findOne({
         where: { user_id: user.id },
         attributes: [
-          'user_id',
-          'name',
-          'class',
-          'subjects',
-          'class_modes',
-          'school_name',
-          'sms_alerts',
-          'languages',
-          'location_id',
-          'profile_photo',
-          'created_at',
-          'updated_at'
+          'user_id', 'name', 'class', 'subjects', 'class_modes', 'school_name',
+          'sms_alerts', 'languages', 'location_id', 'profile_photo',
+          'created_at', 'updated_at'
         ],
         include: [
           {
@@ -73,9 +54,41 @@ export const getProfile = async (req, res) => {
           Location
         ]
       });
+    } else {
+      return res.status(400).json({ message: 'Invalid user role' });
     }
 
-    return res.status(200).json({ profile });
+    // ✅ Get active subscription
+    const subscription = await db.UserSubscription.findOne({
+      where: { user_id: user.id, is_active: true },
+      include: [{ model: db.SubscriptionPlan, attributes: ['plan_name'] }]
+    });
+
+    let subscriptionStatus = 'Unsubscribed';
+    let planName = null;
+    let remainingDays = null;
+
+    if (subscription) {
+      subscriptionStatus = 'Subscribed';
+      planName = subscription.SubscriptionPlan?.plan_name || null;
+
+      const today = new Date();
+      const endDate = new Date(subscription.end_date);
+      remainingDays = differenceInDays(endDate, today);
+
+      if (remainingDays < 0) {
+        subscriptionStatus = 'Expired';
+        remainingDays = 0;
+      }
+    }
+
+    return res.status(200).json({
+      profile,
+      subscription_status: subscriptionStatus,
+      plan_name: planName,
+      remaining_days: remainingDays
+    });
+
   } catch (err) {
     console.error('❌ Profile fetch error:', err);
     return res.status(500).json({ message: 'Failed to fetch profile', error: err.message });

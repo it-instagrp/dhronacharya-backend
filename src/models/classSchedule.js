@@ -1,24 +1,97 @@
-// src/models/classSchedule.js
-
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
 const ClassSchedule = sequelize.define('ClassSchedule', {
-  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  title: { type: DataTypes.STRING, allowNull: false },
-  tutor_id: { type: DataTypes.UUID, allowNull: false },
-  tutor_name: { type: DataTypes.STRING, allowNull: true },   // ✅ Add this
-  student_id: { type: DataTypes.UUID, allowNull: false },
-  student_name: { type: DataTypes.STRING, allowNull: true }, // ✅ Add this
-  zoom_link: { type: DataTypes.STRING },
-  date_time: { type: DataTypes.DATE, allowNull: false },
-  type: { type: DataTypes.ENUM('regular', 'demo'), defaultValue: 'regular' },
-  status: { type: DataTypes.ENUM('scheduled', 'completed', 'cancelled'), defaultValue: 'scheduled' },
-  subject: { type: DataTypes.STRING }, // ✅ (Optional if not present)
+  id: { 
+    type: DataTypes.UUID, 
+    defaultValue: DataTypes.UUIDV4, 
+    primaryKey: true 
+  },
+  title: { 
+    type: DataTypes.STRING, 
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
+  },
+  tutor_id: { 
+    type: DataTypes.UUID, 
+    allowNull: false 
+  },
+  tutor_name: { 
+    type: DataTypes.STRING, 
+    allowNull: true 
+  },
+  student_id: { 
+    type: DataTypes.UUID, 
+    allowNull: false 
+  },
+  student_name: { 
+    type: DataTypes.STRING, 
+    allowNull: true 
+  },
+  meeting_link: { 
+    type: DataTypes.TEXT, // Changed to TEXT for unlimited length
+    allowNull: true,
+    validate: {
+      isUrl: {
+        msg: 'Meeting link must be a valid URL',
+        protocols: ['http', 'https'],
+        require_protocol: true
+      }
+    }
+  },
+  date_time: { 
+    type: DataTypes.DATE, 
+    allowNull: false,
+    validate: {
+      isDate: true,
+      isAfter: {
+        args: new Date().toISOString(),
+        msg: 'Class must be scheduled in the future'
+      }
+    }
+  },
+  type: { 
+    type: DataTypes.ENUM('regular', 'demo'), 
+    defaultValue: 'regular' 
+  },
+  status: { 
+    type: DataTypes.ENUM('scheduled', 'completed', 'cancelled'), 
+    defaultValue: 'scheduled' 
+  },
+  subject: { 
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  mode: {
+    type: DataTypes.ENUM('online', 'offline'),
+    allowNull: false,
+    defaultValue: 'online'
+  },
+  cancellation_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  }
 }, {
   tableName: 'class_schedules',
   timestamps: true,
   underscored: true,
+  paranoid: true, // Adds deletedAt for soft deletes
+  indexes: [
+    {
+      fields: ['tutor_id']
+    },
+    {
+      fields: ['student_id']
+    },
+    {
+      fields: ['date_time']
+    },
+    {
+      fields: ['status']
+    }
+  ]
 });
 
 export default ClassSchedule;

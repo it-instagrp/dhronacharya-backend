@@ -7,7 +7,7 @@ import { Op } from 'sequelize';
 import fs from 'fs';
 import path from 'path';
 import { sendNotification } from '../utils/notification.js';
-
+import { differenceInDays } from 'date-fns';
 const {
   User,
   Student,
@@ -22,18 +22,55 @@ const {
 export const getAllStudents = async (req, res) => {
   try {
     const students = await Student.findAll({
-      attributes: ['user_id', 'name', 'class', 'subjects', 'profile_photo'], // 🆕 include photo
+      attributes: ['user_id', 'name', 'class', 'subjects', 'profile_photo'],
       include: [
-        { model: User, attributes: ['id', 'email', 'mobile_number', 'is_active'] },
+        {
+          model: User,
+          attributes: ['id', 'email', 'mobile_number', 'is_active'],
+          include: [
+            {
+              model: UserSubscription,
+              where: { is_active: true },
+              required: false,
+              include: [
+                {
+                  model: SubscriptionPlan,
+                  attributes: ['plan_name']
+                }
+              ]
+            }
+          ]
+        },
         Location
       ]
     });
-    res.json({ students });
+
+    const studentList = students.map((student) => {
+      const sub = student.User?.UserSubscriptions?.[0];
+
+      let subscription_status = 'Unsubscribed';
+      let plan_name = null;
+      let days_remaining = null;
+
+      if (sub) {
+        subscription_status = 'Subscribed';
+        plan_name = sub.SubscriptionPlan?.plan_name || null;
+        days_remaining = differenceInDays(new Date(sub.end_date), new Date());
+      }
+
+      return {
+        ...student.toJSON(),
+        subscription_status,
+        plan_name,
+        days_remaining
+      };
+    });
+
+    res.json({ students: studentList });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch students', error: error.message });
   }
 };
-
 // 🧑‍🏫 Get all Tutors
 export const getAllTutors = async (req, res) => {
   try {
@@ -56,16 +93,52 @@ export const getAllTutors = async (req, res) => {
         'updatedAt'
       ],
       include: [
-        { model: User, attributes: ['id', 'email', 'mobile_number', 'is_active'] },
+        {
+          model: User,
+          attributes: ['id', 'email', 'mobile_number', 'is_active'],
+          include: [
+            {
+              model: UserSubscription,
+              where: { is_active: true },
+              required: false,
+              include: [
+                {
+                  model: SubscriptionPlan,
+                  attributes: ['plan_name'] // ❌ Remove `end_date` here
+                }
+              ]
+            }
+          ]
+        },
         Location
       ]
     });
-    res.json({ tutors });
+
+    const tutorList = tutors.map((tutor) => {
+      const sub = tutor.User?.UserSubscriptions?.[0]; // since it's hasMany
+      let subscription_status = 'Unsubscribed';
+      let plan_name = null;
+      let days_remaining = null;
+
+      if (sub) {
+        subscription_status = 'Subscribed';
+        plan_name = sub.SubscriptionPlan?.plan_name;
+        days_remaining = differenceInDays(new Date(sub.end_date), new Date()); // ✅ Correct
+      }
+
+      return {
+        ...tutor.toJSON(),
+        subscription_status,
+        plan_name,
+        days_remaining
+      };
+    });
+
+    res.json({ tutors: tutorList });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch tutors', error: error.message });
   }
 };
-
 
 // ✅ Update Tutor Status (approve/reject)
 export const updateTutorStatus = async (req, res) => {
@@ -298,14 +371,20 @@ export const getContactLogs = async (req, res) => {
 // ✅ Send message/alert to a single user (tutor or student)
 export const sendUserMessage = async (req, res) => {
   const { user_id, type, template_name, content } = req.body;
+  const senderId = req.user?.id;
 
   try {
-    const user = await db.User.findByPk(user_id);
+    const [user, senderUser] = await Promise.all([
+      db.User.findByPk(user_id),
+      db.User.findByPk(senderId),
+    ]);
+
     if (!user || !['tutor', 'student'].includes(user.role)) {
       return res.status(404).json({ message: 'User not found or invalid role' });
     }
 
-    // Save & send notification
+    const senderRole = senderUser?.role || 'admin-system';
+
     const notification = await db.Notification.create({
       user_id,
       type,
@@ -313,45 +392,64 @@ export const sendUserMessage = async (req, res) => {
       recipient: user.email || user.mobile_number,
       content,
       status: 'pending',
+      sent_by: senderRole // ⬅️ Use role instead of ID
     });
 
     await sendNotification({
       type,
       recipient: user.email || user.mobile_number,
       subject: template_name,
-      content: typeof content === 'object' ? content.message : content,
+      template_name,
+      params: content
     });
 
     notification.status = 'sent';
     notification.sent_at = new Date();
     await notification.save();
 
-    res.status(200).json({ message: `${type} sent to ${user.role}`, notification });
+    res.status(200).json({
+      message: `${type} sent to ${user.role}`,
+      notification: {
+        ...notification.toJSON(),
+        sent_by: senderRole
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Failed to send message', error: error.message });
   }
 };
+
+
+// ✅ Bulk send to tutors or students based on role and optional filter
 // ✅ Bulk send to tutors or students based on role and optional filter
 // ✅ Bulk send to tutors or students based on role and optional filter
 export const sendBulkUserMessage = async (req, res) => {
   const { role, type, template_name, content, filter = {} } = req.body;
+  const senderId = req.user?.id;
 
   try {
     if (!['tutor', 'student'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role. Must be tutor or student' });
     }
 
-    const userWhere = { role, is_active: true };
+    const senderUser = await db.User.findByPk(senderId);
+    const senderRole = senderUser?.role || 'admin-system';
 
-    // Only apply filter if it's not empty
+    const userWhere = { role, is_active: true };
     const includeModel = role === 'tutor' ? db.Tutor : db.Student;
+
+    // 🛡️ Normalize potential array fields in filter (adjust field names as per DB)
+    const normalizeArrayFields = ['classes', 'subjects', 'teaching_modes', 'languages'];
+    for (const key of normalizeArrayFields) {
+      if (filter[key] && !Array.isArray(filter[key])) {
+        filter[key] = [filter[key]];
+      }
+    }
+
     const profileInclude = {
       model: includeModel,
       ...(Object.keys(filter).length ? { where: filter } : {}),
     };
-
-    console.log('🔍 Filter:', filter);
-    console.log('📤 Sending to:', role);
 
     const users = await db.User.findAll({
       where: userWhere,
@@ -365,8 +463,6 @@ export const sendBulkUserMessage = async (req, res) => {
     const sentTo = [];
 
     for (const user of users) {
-      const messageContent = typeof content === 'object' ? content.message : content;
-
       await db.Notification.create({
         user_id: user.id,
         type,
@@ -375,13 +471,15 @@ export const sendBulkUserMessage = async (req, res) => {
         content,
         status: 'sent',
         sent_at: new Date(),
+        sent_by: senderRole
       });
 
       await sendNotification({
         type,
         recipient: user.email || user.mobile_number,
         subject: template_name,
-        content: messageContent,
+        template_name,
+        params: content
       });
 
       sentTo.push({ id: user.id, email: user.email });
@@ -390,6 +488,7 @@ export const sendBulkUserMessage = async (req, res) => {
     res.status(200).json({
       message: `✅ Message sent to ${sentTo.length} ${role}${sentTo.length > 1 ? 's' : ''}`,
       recipients: sentTo,
+      sent_by: senderRole
     });
   } catch (err) {
     console.error('❌ Bulk message error:', err);

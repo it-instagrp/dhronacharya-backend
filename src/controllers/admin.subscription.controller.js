@@ -1,11 +1,16 @@
 import db from '../models/index.js';
+import { Op } from 'sequelize';
 
 const { UserSubscription, SubscriptionPlan, User, Tutor, Student } = db;
 
-// GET /api/admin/subscriptions
+// ✅ GET /api/admin/subscriptions?role=tutor|student
 export const getAllSubscriptions = async (req, res) => {
+  const { role } = req.query;
+  const where = role ? { '$User.role$': role } : {};
+
   try {
     const subscriptions = await UserSubscription.findAll({
+      where,
       include: [
         {
           model: User,
@@ -38,7 +43,45 @@ export const getAllSubscriptions = async (req, res) => {
   }
 };
 
-// Create
+// ✅ GET /api/admin/subscriptions/unsubscribed?role=tutor|student
+export const getUnsubscribedUsers = async (req, res) => {
+  const { role } = req.query;
+
+  if (!['tutor', 'student'].includes(role)) {
+    return res.status(400).json({ message: 'Invalid role. Must be tutor or student' });
+  }
+
+  try {
+    const subscribed = await UserSubscription.findAll({ attributes: ['user_id'] });
+    const subscribedIds = subscribed.map((s) => s.user_id);
+
+    const unsubscribedUsers = await User.findAll({
+      where: {
+        id: { [Op.notIn]: subscribedIds },
+        role,
+      },
+      attributes: ['id', 'email', 'mobile_number', 'role'],
+      include: [
+        { model: Tutor, attributes: ['name'] },
+        { model: Student, attributes: ['name'] }
+      ]
+    });
+
+    const formatted = unsubscribedUsers.map(user => ({
+      id: user.id,
+      name: user.Tutor?.name || user.Student?.name || 'Unnamed',
+      email: user.email,
+      phone: user.mobile_number,
+      profession: user.role === 'tutor' ? 'Tutor' : 'Student'
+    }));
+
+    res.status(200).json(formatted);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch unsubscribed users', error: err.message });
+  }
+};
+
+// ✅ POST /api/admin/subscriptions/plans
 export const createSubscriptionPlan = async (req, res) => {
   const { plan_name, price, duration_days, contact_limit, plan_type, features, user_type } = req.body;
 
@@ -47,7 +90,7 @@ export const createSubscriptionPlan = async (req, res) => {
   }
 
   try {
-    const plan = await db.SubscriptionPlan.create({
+    const plan = await SubscriptionPlan.create({
       plan_name,
       price,
       duration_days,
@@ -63,11 +106,11 @@ export const createSubscriptionPlan = async (req, res) => {
   }
 };
 
-// Update
+// ✅ PUT /api/admin/subscriptions/plans/:id
 export const updateSubscriptionPlan = async (req, res) => {
   try {
     const { id } = req.params;
-    const plan = await db.SubscriptionPlan.findByPk(id);
+    const plan = await SubscriptionPlan.findByPk(id);
     if (!plan) return res.status(404).json({ message: 'Plan not found' });
 
     await plan.update(req.body);
@@ -77,11 +120,11 @@ export const updateSubscriptionPlan = async (req, res) => {
   }
 };
 
-// Delete
+// ✅ DELETE /api/admin/subscriptions/plans/:id
 export const deleteSubscriptionPlan = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await db.SubscriptionPlan.destroy({ where: { id } });
+    const deleted = await SubscriptionPlan.destroy({ where: { id } });
     if (!deleted) return res.status(404).json({ message: 'Plan not found' });
 
     return res.status(200).json({ message: 'Plan deleted successfully' });
@@ -90,7 +133,7 @@ export const deleteSubscriptionPlan = async (req, res) => {
   }
 };
 
-// GET /api/admin/subscriptions/plans
+// ✅ GET /api/admin/subscriptions/plans
 export const getAllSubscriptionPlans = async (req, res) => {
   try {
     const plans = await SubscriptionPlan.findAll({

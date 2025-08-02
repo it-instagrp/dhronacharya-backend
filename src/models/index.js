@@ -67,6 +67,9 @@ db.UserSubscription.belongsTo(db.Payment, { foreignKey: 'payment_id' });
 // Notifications
 db.User.hasMany(db.Notification, { foreignKey: 'user_id' });
 db.Notification.belongsTo(db.User, { foreignKey: 'user_id' });
+db.User.hasMany(db.Notification, { foreignKey: 'sent_by', as: 'SentNotifications' });
+db.Notification.belongsTo(db.User, { foreignKey: 'sent_by', as: 'Sender' });
+
 
 // Locations
 db.Tutor.belongsTo(db.Location, { foreignKey: 'location_id' });

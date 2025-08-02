@@ -34,7 +34,18 @@ const Enquiry = sequelize.define('Enquiry', {
   response_message: {
     type: DataTypes.TEXT,
     allowNull: true,
-  }
+  },
+
+  // ✅ New fields
+  sender_location: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  receiver_location: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
 }, {
   tableName: 'enquiries',
   timestamps: true,

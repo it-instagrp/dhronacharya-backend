@@ -103,23 +103,47 @@ export const exportReferralsCSV = async (req, res) => {
       where,
       include: [
         { model: User, as: 'Referrer', attributes: ['email'] },
-        { model: User, as: 'Referred', attributes: ['email'] }
+        { model: User, as: 'Referred', attributes: ['email'], required: false }
       ],
       raw: true,
       nest: true
     });
 
-    const fields = ['code', 'Referrer.email', 'Referred.email', 'status', 'reward_given'];
+    // Format with fallback to referred_email if Referred is null
+    const formatted = data.map(d => ({
+      code: d.code,
+      referrerEmail: d.Referrer?.email || '',
+      referredEmail: d.Referred?.email || d.referred_email || '',
+      status: d.status,
+      reward_given: d.reward_given,
+      reward_type: d.reward_type || '',
+      reward_value: d.reward_value || '',
+      referred_at: d.referred_at ? new Date(d.referred_at).toLocaleString() : ''
+    }));
+
+    const fields = [
+      'code',
+      'referrerEmail',
+      'referredEmail',
+      'status',
+      'reward_given',
+      'reward_type',
+      'reward_value',
+      'referred_at'
+    ];
+
     const parser = new Parser({ fields });
-    const csv = parser.parse(data);
+    const csv = parser.parse(formatted);
 
     res.header('Content-Type', 'text/csv');
     res.attachment('referrals.csv');
     res.send(csv);
   } catch (err) {
+    console.error('❌ Error exporting referral CSV:', err);
     res.status(500).json({ message: 'Error exporting referral CSV', error: err.message });
   }
 };
+
 
 export const exportClassAttendanceCSV = async (req, res) => {
   try {
