@@ -46,8 +46,20 @@ applicable_plan: {
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
-  }
-}, {
+  },
+  usage_limit: {
+  type: DataTypes.INTEGER,
+  defaultValue: null,
+  allowNull: true
+}
+,
+description: {
+  type: DataTypes.STRING,
+  allowNull: true
+}
+
+}, 
+{
   tableName: 'coupons',
   timestamps: true,       // Sequelize will auto-manage created_at & updated_at
   underscored: true       // Matches your DB naming conventions (snake_case)

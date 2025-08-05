@@ -23,6 +23,7 @@ import referralRoutes from './referral.routes.js';
 import couponRoutes from './coupon.route.js';
 import analyticsRoutes from './analytics.routes.js';
 import notificationRoutes from './notification.route.js';
+import invoiceRoutes from './invoice.route.js';
 
 const routes = () => {
   router.get('/', (req, res) => {
@@ -50,6 +51,7 @@ const routes = () => {
   router.use('/coupons', couponRoutes);
   router.use('/analytics', analyticsRoutes);
   router.use('/notifications', notificationRoutes);
+  router.use('/invoices', invoiceRoutes);
 
   return router;
 };

@@ -368,9 +368,34 @@ export const getContactLogs = async (req, res) => {
 };
 
 
+// 🔧 Updated: Role-based message wrapper with formatting support
+const templatesWithFormatting = ['general', 'ImportantUpdate', 'subscriptionReminder', 'enquiryReceived'];
+
+// 🔧 Updated: Role-based message wrapper with formatting support
+const generateRoleBasedContent = (role, content, template_name, formatted) => {
+  const name = role === 'tutor' ? 'Tutor' : 'Student';
+
+  const useFormatted = typeof formatted === 'boolean'
+    ? formatted
+    : templatesWithFormatting.includes(template_name);
+
+  if (useFormatted) {
+    return {
+      ...content,
+      name
+    };
+  }
+
+  const greeting = `Dear ${name},`;
+  return {
+    ...content,
+    message: `${greeting}\n\n${content.message}\n\nStay connected and keep learning!\n\nRegards,\nTeam Dronacharya`
+  };
+};
+
 // ✅ Send message/alert to a single user (tutor or student)
 export const sendUserMessage = async (req, res) => {
-  const { user_id, type, template_name, content } = req.body;
+  const { user_id, type, template_name, content, formatted } = req.body;
   const senderId = req.user?.id;
 
   try {
@@ -384,15 +409,16 @@ export const sendUserMessage = async (req, res) => {
     }
 
     const senderRole = senderUser?.role || 'admin-system';
+    const roleBasedContent = generateRoleBasedContent(user.role, content, template_name, formatted);
 
     const notification = await db.Notification.create({
       user_id,
       type,
       template_name,
       recipient: user.email || user.mobile_number,
-      content,
+      content: roleBasedContent,
       status: 'pending',
-      sent_by: senderRole // ⬅️ Use role instead of ID
+      sent_by: senderRole
     });
 
     await sendNotification({
@@ -400,7 +426,7 @@ export const sendUserMessage = async (req, res) => {
       recipient: user.email || user.mobile_number,
       subject: template_name,
       template_name,
-      params: content
+      params: roleBasedContent
     });
 
     notification.status = 'sent';
@@ -419,12 +445,9 @@ export const sendUserMessage = async (req, res) => {
   }
 };
 
-
-// ✅ Bulk send to tutors or students based on role and optional filter
-// ✅ Bulk send to tutors or students based on role and optional filter
 // ✅ Bulk send to tutors or students based on role and optional filter
 export const sendBulkUserMessage = async (req, res) => {
-  const { role, type, template_name, content, filter = {} } = req.body;
+  const { role, type, template_name, content, formatted, filter = {} } = req.body;
   const senderId = req.user?.id;
 
   try {
@@ -438,7 +461,7 @@ export const sendBulkUserMessage = async (req, res) => {
     const userWhere = { role, is_active: true };
     const includeModel = role === 'tutor' ? db.Tutor : db.Student;
 
-    // 🛡️ Normalize potential array fields in filter (adjust field names as per DB)
+    // 🛡️ Normalize array filter fields
     const normalizeArrayFields = ['classes', 'subjects', 'teaching_modes', 'languages'];
     for (const key of normalizeArrayFields) {
       if (filter[key] && !Array.isArray(filter[key])) {
@@ -463,12 +486,14 @@ export const sendBulkUserMessage = async (req, res) => {
     const sentTo = [];
 
     for (const user of users) {
+      const roleBasedContent = generateRoleBasedContent(user.role, content, template_name, formatted);
+
       await db.Notification.create({
         user_id: user.id,
         type,
         template_name,
         recipient: user.email || user.mobile_number,
-        content,
+        content: roleBasedContent,
         status: 'sent',
         sent_at: new Date(),
         sent_by: senderRole
@@ -479,7 +504,7 @@ export const sendBulkUserMessage = async (req, res) => {
         recipient: user.email || user.mobile_number,
         subject: template_name,
         template_name,
-        params: content
+        params: roleBasedContent
       });
 
       sentTo.push({ id: user.id, email: user.email });

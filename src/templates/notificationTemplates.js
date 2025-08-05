@@ -40,9 +40,9 @@ Team Dronacharya
     whatsapp: ({ studentName, subject }) => `📥 Enquiry from ${studentName} on ${subject}. Reply soon.`
   },
 
-  ImportantUpdate: {
-    email: ({ message }) => `
-Dear Student,
+ ImportantUpdate: {
+  email: ({ name, message }) => `
+Dear ${name},
 
 ${message}
 
@@ -50,10 +50,11 @@ Stay connected and keep learning!
 
 Regards,  
 Team Dronacharya
-    `.trim(),
-    sms: ({ message }) => `${message}`,
-    whatsapp: ({ message }) => `${message}`
-  },
+  `.trim(),
+  sms: ({ message }) => `${message}`,
+  whatsapp: ({ message }) => `${message}`
+}
+,
 
   // ✅ ADD THESE
   new_enquiry_email: {
