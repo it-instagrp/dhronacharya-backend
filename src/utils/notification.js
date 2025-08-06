@@ -1,56 +1,53 @@
-// src/utils/notification.js
 import { sendEmail } from './email.js';
-import axios from 'axios';
+import { sendSMS } from './sms.js';
+import { sendWhatsApp } from './whatsapp.js';
+import { notificationTemplates } from '../templates/notificationTemplates.js';
 
-export const sendNotification = async ({ type, recipient, subject, content }) => {
+export const sendNotification = async ({ type, recipient, subject, template_name, params }) => {
+  let message;
+
+  const template = notificationTemplates[template_name]?.[type];
+
+  // ✅ Use template if exists
+  if (template) {
+    if (params?.values && !Array.isArray(params.values)) {
+      params.values = [params.values];
+    }
+
+    // ✅ Fix undefined name fallback
+    const filledParams = {
+      ...params,
+      name: params?.name || 'User',
+    };
+
+    message = template(filledParams);
+  } else {
+    // ✅ Fallback formatting logic
+    if (!params?.message) {
+      throw new Error(`No message content provided for template "${template_name}"`);
+    }
+
+    const rawMessage = params.message.trim();
+    const name = params?.name || 'User';
+
+    const alreadyHasGreeting = rawMessage.toLowerCase().startsWith('dear') || rawMessage.includes('Team Dronacharya');
+
+    if (alreadyHasGreeting) {
+      message = rawMessage;
+    } else {
+      message = `Dear ${name},\n\n${rawMessage}\n\nStay connected and keep learning!\n\nRegards,\nTeam Dronacharya`;
+    }
+  }
+
+  // 📨 Dispatch via selected type
   switch (type) {
     case 'email':
-      return await sendEmail(recipient, subject, content);
-
+      return sendEmail(recipient, subject, message);
     case 'sms':
-      return await sendSMS(recipient, content);
-
+      return sendSMS(recipient, message);
     case 'whatsapp':
-      return await sendWhatsApp(recipient, content);
-
+      return sendWhatsApp(recipient, message);
     default:
       throw new Error('Unsupported notification type');
-  }
-};
-
-const sendSMS = async (phoneNumber, message) => {
-  try {
-    const response = await axios.post('https://api.textlocal.in/send/', {
-      apikey: process.env.TEXTLOCAL_API_KEY,
-      numbers: phoneNumber,
-      sender: 'TXTLCL',
-      message
-    });
-    console.log('📲 SMS sent:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('❌ SMS failed:', error.message);
-    throw new Error('SMS sending failed');
-  }
-};
-
-const sendWhatsApp = async (phoneNumber, message) => {
-  try {
-    const response = await axios.post('https://api.interakt.ai/v1/public/message/', {
-      phoneNumber,
-      callbackData: 'test-callback',
-      type: 'text',
-      message: { text: message }
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.INTERAKT_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log('🟢 WhatsApp message sent:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('❌ WhatsApp failed:', error.message);
-    throw new Error('WhatsApp sending failed');
   }
 };

@@ -15,6 +15,11 @@ const Notification = sequelize.define('Notification', {
     type: DataTypes.STRING(50), // email, sms, push etc
     allowNull: false,
   },
+sent_by: {
+  type: DataTypes.UUID,
+  allowNull: true
+}
+,
   template_name: {
     type: DataTypes.STRING(100),
     allowNull: false,

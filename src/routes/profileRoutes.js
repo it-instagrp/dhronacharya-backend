@@ -44,7 +44,7 @@ router.patch('/photo', uploadProfilePhoto.single('photo'), updateProfilePhoto);
 router.delete('/photo', deleteProfilePhoto);
 
 // 📥 Upload Aadhar / PAN documents
-// 📥 Upload Aadhar / PAN documents
+
 router.post(
   '/documents',
   uploadDocuments.any(),   // ✅ Accept any field names

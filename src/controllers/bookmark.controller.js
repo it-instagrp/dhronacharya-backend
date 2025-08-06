@@ -32,7 +32,10 @@ export const getBookmarks = async (req, res) => {
         model: User,
         as: 'BookmarkedUser',
         include: [
-          { model: Tutor },
+          {
+            model: Tutor,
+            include: [{ model: db.Location }] // ✅ Include location here
+          },
           { model: Student }
         ]
       }]

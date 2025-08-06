@@ -7,22 +7,18 @@ const { Student, Tutor, User, Location } = db;
 export const getStudents = async (req, res) => {
   try {
     let { subjects, classes, location } = req.query;
-
     const whereConditions = {};
 
-    // ✅ Subjects handling
     if (subjects) {
       if (!Array.isArray(subjects)) subjects = [subjects];
       whereConditions.subjects = { [Op.overlap]: subjects };
     }
 
-    // ✅ Class handling
     if (classes) {
       if (!Array.isArray(classes)) classes = [classes];
       whereConditions.class = { [Op.overlap]: classes };
     }
 
-    // ✅ Location handling (city, state, country)
     const locationFilter = location ? {
       [Op.or]: [
         { city: { [Op.iLike]: `%${location}%` } },
@@ -39,6 +35,12 @@ export const getStudents = async (req, res) => {
       ],
       order: [['created_at', 'DESC']]
     });
+
+    // ✅ Not Found Check
+    if (!students || students.length === 0) {
+  return res.status(200).json({ students: [] }); // Instead of 404
+}
+
 
     return res.status(200).json({ students });
   } catch (err) {

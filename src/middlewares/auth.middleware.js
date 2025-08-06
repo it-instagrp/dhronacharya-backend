@@ -141,3 +141,54 @@ export const checkTutorApproval = async (req, res, next) => {
 
   next();
 };
+
+
+/**
+ * Basic token verification middleware
+ * Only attaches user ID and role, no DB fetch
+ */
+export const verifyToken = (req, res, next) => {
+  try {
+    const authHeader = req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        success: false,
+        message: 'Authorization token is required',
+        code: HttpStatus.UNAUTHORIZED
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      token
+    };
+
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        success: false,
+        message: 'Session expired, please login again',
+        code: HttpStatus.UNAUTHORIZED
+      });
+    }
+
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        success: false,
+        message: 'Invalid token',
+        code: HttpStatus.UNAUTHORIZED
+      });
+    }
+
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: 'Token verification failed',
+      code: HttpStatus.INTERNAL_SERVER_ERROR
+    });
+  }
+};

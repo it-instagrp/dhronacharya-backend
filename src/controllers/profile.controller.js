@@ -5,39 +5,96 @@ import fs from 'fs';
 import path from 'path';
 import { getPlaceDetailsFromGoogle } from '../utils/googlePlacesService.js';
 
+import { differenceInDays } from 'date-fns';
+
+
 const { User, Tutor, Student, Location } = db;
 
-// 🔍 GET profile (student/tutor + email + mobile)
+// 🔍 GET profile
+// 🔍 GET profile with subscription status
+// 🔍 GET profile with subscription status and remaining days
 export const getProfile = async (req, res) => {
   const { user } = req;
+
   try {
     let profile;
+
     if (user.role === 'tutor') {
       profile = await Tutor.findOne({
         where: { user_id: user.id },
+        attributes: [
+          'user_id', 'name', 'subjects', 'classes', 'degrees',
+          'introduction_video', 'profile_status', 'documents', 'school_name',
+          'degree_status', 'teaching_modes', 'experience', 'sms_alerts',
+          'pricing_per_hour', 'languages', 'profile_photo', 'location_id',
+          'created_at', 'updated_at'
+        ],
         include: [
-          Location,
-          { model: User, attributes: ['email', 'mobile_number'] }
+          {
+            model: User,
+            attributes: ['id', 'email', 'mobile_number', 'is_active']
+          },
+          Location
         ]
       });
+
     } else if (user.role === 'student') {
       profile = await Student.findOne({
         where: { user_id: user.id },
+        attributes: [
+          'user_id', 'name', 'class', 'subjects', 'class_modes', 'school_name',
+          'sms_alerts', 'languages', 'location_id', 'profile_photo',
+          'created_at', 'updated_at'
+        ],
         include: [
-          Location,
-          { model: User, attributes: ['email', 'mobile_number'] }
+          {
+            model: User,
+            attributes: ['id', 'email', 'mobile_number', 'is_active']
+          },
+          Location
         ]
       });
+    } else {
+      return res.status(400).json({ message: 'Invalid user role' });
     }
-    return res.status(HttpStatus.OK).json({ profile });
-  } catch (err) {
-    logger.error('Profile fetch error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-      message: 'Failed to fetch profile',
-      error: err.message
+
+    // ✅ Get active subscription
+    const subscription = await db.UserSubscription.findOne({
+      where: { user_id: user.id, is_active: true },
+      include: [{ model: db.SubscriptionPlan, attributes: ['plan_name'] }]
     });
+
+    let subscriptionStatus = 'Unsubscribed';
+    let planName = null;
+    let remainingDays = null;
+
+    if (subscription) {
+      subscriptionStatus = 'Subscribed';
+      planName = subscription.SubscriptionPlan?.plan_name || null;
+
+      const today = new Date();
+      const endDate = new Date(subscription.end_date);
+      remainingDays = differenceInDays(endDate, today);
+
+      if (remainingDays < 0) {
+        subscriptionStatus = 'Expired';
+        remainingDays = 0;
+      }
+    }
+
+    return res.status(200).json({
+      profile,
+      subscription_status: subscriptionStatus,
+      plan_name: planName,
+      remaining_days: remainingDays
+    });
+
+  } catch (err) {
+    console.error('❌ Profile fetch error:', err);
+    return res.status(500).json({ message: 'Failed to fetch profile', error: err.message });
   }
 };
+
 
 // 🌍 Update Location
 export const updateLocation = async (req, res) => {
@@ -45,15 +102,14 @@ export const updateLocation = async (req, res) => {
   const { place_id } = req.body;
   try {
     const locationDetails = await getPlaceDetailsFromGoogle(place_id);
-    const [location] = await Location.upsert(
-      { place_id, ...locationDetails },
-      { returning: true }
-    );
+    const [location] = await Location.upsert({ place_id, ...locationDetails }, { returning: true });
+
     if (user.role === 'tutor') {
       await Tutor.update({ location_id: location.id }, { where: { user_id: user.id } });
     } else if (user.role === 'student') {
       await Student.update({ location_id: location.id }, { where: { user_id: user.id } });
     }
+
     return res.status(HttpStatus.OK).json({ message: 'Location updated successfully', location });
   } catch (err) {
     logger.error('Location update error:', err);
@@ -65,51 +121,97 @@ export const updateLocation = async (req, res) => {
 };
 
 // ✏ Update Student Profile
+// ✏ Update Student Profile
 export const updateStudentProfile = async (req, res) => {
-  const { name, class: studentClass, subjects, class_modes, place_id } = req.body;
+  const {
+    name,
+    class: studentClass,
+    subjects,
+    class_modes,
+    place_id,
+    sms_alerts,
+    languages,
+    school_name // ✅ Added support for this field
+  } = req.body;
+
   const { id: user_id, role } = req.user;
-  if (role !== 'student') return res.status(403).json({ message: 'Only students can update this profile' });
+
+  // 🚫 Only students can update student profile
+  if (role !== 'student') {
+    return res.status(403).json({ message: 'Only students can update this profile' });
+  }
+
   try {
+    // 📍 Handle location update via place_id if provided
     let location = null;
     if (place_id) {
       const locationDetails = await getPlaceDetailsFromGoogle(place_id);
       const [loc] = await Location.upsert({ place_id, ...locationDetails }, { returning: true });
       location = loc;
     }
+
+    // 🔍 Find existing student profile
     let student = await Student.findOne({ where: { user_id } });
+
+    // 🧩 Build payload to update/create
+    const payload = {
+      name,
+      class: studentClass,
+      subjects,
+      class_modes,
+      sms_alerts,
+      languages,
+      school_name, // ✅ Include school_name
+      location_id: location?.id || student?.location_id || null
+    };
+
     if (student) {
-      await Student.update({
-        name,
-        class: studentClass,
-        subjects,
-        class_modes,
-        location_id: location?.id || student.location_id
-      }, { where: { user_id } });
+      // 🔄 Update existing
+      await Student.update(payload, { where: { user_id } });
     } else {
-      student = await Student.create({
-        user_id,
-        name,
-        class: studentClass,
-        subjects,
-        class_modes,
-        location_id: location?.id || null
-      });
+      // ➕ Create new
+      await Student.create({ user_id, ...payload });
     }
-    const profile = await Student.findOne({ where: { user_id }, include: [Location] });
+
+    // 🔁 Return updated profile
+    const profile = await Student.findOne({
+      where: { user_id },
+      attributes: [
+        'user_id',
+        'name',
+        'class',
+        'subjects',
+        'class_modes',
+        'sms_alerts',
+        'languages',
+        'location_id',
+        'school_name', // ✅ Added here too
+        'profile_photo',
+        'created_at',
+        'updated_at'
+      ],
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'email', 'mobile_number', 'is_active']
+        },
+        Location
+      ]
+    });
+
     return res.status(200).json({ message: 'Student profile updated', profile });
+
   } catch (error) {
     return res.status(500).json({ message: 'Error saving student profile', error: error.message });
   }
 };
 
-// ✏ Update Tutor Profile
+// ✏ Update Tutor Profile (✅ sms_alerts added)
 export const updateTutorProfile = async (req, res) => {
   const {
     name, subjects, classes, degrees, introduction_video,
-    school_name, degree_status,
-    teaching_modes, experience, pricing_per_hour,
-    languages, documents,
-    place_id
+    school_name, degree_status, teaching_modes, experience,
+    pricing_per_hour, languages, documents, sms_alerts, place_id
   } = req.body;
 
   const { id: user_id, role } = req.user;
@@ -123,7 +225,7 @@ export const updateTutorProfile = async (req, res) => {
       location = loc;
     }
 
-    const [updated] = await Tutor.update({
+    const payload = {
       name,
       subjects,
       classes,
@@ -136,17 +238,28 @@ export const updateTutorProfile = async (req, res) => {
       pricing_per_hour,
       languages,
       documents,
+      sms_alerts,
       location_id: location?.id
-    }, { where: { user_id } });
+    };
 
-    if (!updated) return res.status(404).json({ message: 'Tutor profile not found' });
+    let tutor = await Tutor.findOne({ where: { user_id } });
+
+    if (!tutor) {
+      // 🔧 CREATE new tutor record if not found
+      tutor = await Tutor.create({ user_id, ...payload });
+    } else {
+      // ✏️ UPDATE existing
+      await Tutor.update(payload, { where: { user_id } });
+    }
 
     const profile = await Tutor.findOne({ where: { user_id }, include: [Location] });
     return res.status(200).json({ message: 'Tutor profile updated', profile });
+
   } catch (error) {
     return res.status(500).json({ message: 'Error updating tutor profile', error: error.message });
   }
 };
+
 
 // ✏ Update email or mobile number
 export const updateProfileField = async (req, res) => {
@@ -156,8 +269,10 @@ export const updateProfileField = async (req, res) => {
     if (!['email', 'mobile_number'].includes(field)) {
       return res.status(400).json({ message: 'Invalid field to update' });
     }
+
     const user = await User.findByPk(user_id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+
     user[field] = value;
     await user.save();
     return res.status(200).json({ message: `${field} updated successfully` });
@@ -183,19 +298,23 @@ export const deleteUserAndProfile = async (req, res) => {
 };
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+// const BASE_URL = `${process.env.APP_HOST}:${process.env.APP_PORT}`;
+
 
 // ✅ Upload/Update Profile Photo
 export const updateProfilePhoto = async (req, res) => {
   const { user } = req;
   const file = req.file;
   if (!file) return res.status(400).json({ message: 'No file uploaded' });
+
   try {
-    const photoPath = `/uploads/profile_photos/${file.filename}`;
+    const photoPath = `${BASE_URL}/uploads/profile_photos/${file.filename}`;
     if (user.role === 'student') {
       await Student.update({ profile_photo: photoPath }, { where: { user_id: user.id } });
     } else if (user.role === 'tutor') {
       await Tutor.update({ profile_photo: photoPath }, { where: { user_id: user.id } });
     }
+
     return res.status(200).json({ message: 'Profile photo updated', profile_photo: photoPath });
   } catch (error) {
     return res.status(500).json({ message: 'Error uploading photo', error: error.message });
@@ -216,17 +335,22 @@ export const deleteProfilePhoto = async (req, res) => {
       photoPath = tutor.profile_photo;
       await tutor.update({ profile_photo: null });
     }
+
     if (photoPath) {
-      const filePath = path.join(process.cwd(), photoPath);
+      // Strip BASE_URL from URL before deletion
+      const relativePath = photoPath.replace(BASE_URL, '');
+      const filePath = path.join(process.cwd(), relativePath);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
+
     return res.status(200).json({ message: 'Profile photo deleted' });
   } catch (error) {
     return res.status(500).json({ message: 'Error deleting profile photo', error: error.message });
   }
 };
 
-// ✅ Upload Tutor Documents (Aadhar / PAN)
+
+// ✅ Upload Tutor Documents
 export const uploadTutorDocuments = async (req, res) => {
   const { user } = req;
   if (user.role !== 'tutor') return res.status(403).json({ message: 'Only tutors allowed' });
@@ -245,16 +369,16 @@ export const uploadTutorDocuments = async (req, res) => {
     for (const file of files) {
       const fieldName = file.fieldname;
 
-      // Delete old document if it exists
+      // Remove old
       if (currentDocs[fieldName]) {
-        const oldPath = path.join(process.cwd(), currentDocs[fieldName].url);
+        const oldPath = path.join(process.cwd(), currentDocs[fieldName].url.replace(BASE_URL, ''));
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
 
-      // Save new document
+      // Save new with absolute URL
       currentDocs[fieldName] = {
         name: file.originalname,
-        url: `/uploads/documents/${file.filename}`
+        url: `${BASE_URL}/uploads/documents/${file.filename}`
       };
     }
 
@@ -266,6 +390,7 @@ export const uploadTutorDocuments = async (req, res) => {
     res.status(500).json({ message: 'Upload failed', error: error.message });
   }
 };
+
 
 // ✅ Delete Specific Tutor Document
 export const deleteTutorDocument = async (req, res) => {
@@ -279,7 +404,10 @@ export const deleteTutorDocument = async (req, res) => {
       return res.status(404).json({ message: `Document "${type}" not found` });
     }
 
-    const docPath = path.join(process.cwd(), tutor.documents[type].url);
+    const docURL = tutor.documents[type].url;
+    const relativePath = docURL.replace(BASE_URL, '');
+    const docPath = path.join(process.cwd(), relativePath);
+
     if (fs.existsSync(docPath)) fs.unlinkSync(docPath);
 
     delete tutor.documents[type];
