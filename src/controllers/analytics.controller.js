@@ -109,13 +109,10 @@ export const exportReferralsCSV = async (req, res) => {
       nest: true
     });
 
-    // Count total referred users per referral code
+    // Count total referred users per referral code (based on usage)
     const referralCounts = {};
     for (const d of data) {
-     if (d.Referred?.email || d.referred_email) {
-  referralCounts[d.code] = (referralCounts[d.code] || 0) + 1;
-}
-
+      referralCounts[d.code] = (referralCounts[d.code] || 0) + 1;
     }
 
     // Format final data for CSV (1 row per referred user)
@@ -123,7 +120,7 @@ export const exportReferralsCSV = async (req, res) => {
       code: d.code,
       referrerName: d.Referrer?.name || '',
       referrerEmail: d.Referrer?.email || '',
-      referredName: d.Referred?.name || '',
+      referredName: d.Referred?.name || d.referred_name || '',
       referredEmail: d.Referred?.email || d.referred_email || '',
       status: d.status || '',
       reward_given: d.reward_given ? 'Yes' : 'No',
@@ -160,8 +157,6 @@ export const exportReferralsCSV = async (req, res) => {
     res.status(500).json({ message: 'Error exporting referral CSV', error: err.message });
   }
 };
-
-
 
 export const exportClassAttendanceCSV = async (req, res) => {
   try {

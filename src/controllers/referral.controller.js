@@ -24,22 +24,31 @@ export const generateReferralCode = async (req, res) => {
       where: { referrer_user_id: userId, referred_user_id: null },
     });
 
-    if (!existing) {
-      existing = await ReferralCode.create({
-        id: uuidv4(),
-        code: `DRONA-${uuidv4().slice(0, 6).toUpperCase()}`,
-        referrer_user_id: userId,
+    if (existing) {
+      return res.status(200).json({
+        status: true,
+        message: `Your referral code is: ${existing.code}`,
+        code: existing.code,
       });
     }
 
-    return res
-      .status(200)
-      .json({ status: true, message: 'Referral code ready.', code: existing.code });
+    const newCode = await ReferralCode.create({
+      id: uuidv4(),
+      code: `DRONA-${uuidv4().slice(0, 6).toUpperCase()}`,
+      referrer_user_id: userId,
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: `Referral code created: ${newCode.code}`,
+      code: newCode.code,
+    });
   } catch (err) {
     console.error('Error generating referral code:', err);
     return res.status(500).json({ status: false, message: 'Internal Server Error' });
   }
 };
+
 
 // ✅ 2. Apply referral code
 export const applyReferralCode = async (req, res) => {
@@ -182,15 +191,15 @@ export const getMyReferralCodes = async (req, res) => {
 // ✅ 4. Admin - Get all referrals
 export const getAllReferrals = async (req, res) => {
   try {
-    const referrals = await ReferralCode.findAll({
+    const referrals = await db.ReferralCode.findAll({
       include: [
         {
-          model: User,
+          model: db.User,
           as: 'Referrer',
           attributes: ['id', 'name', 'email'],
         },
         {
-          model: User,
+          model: db.User,
           as: 'Referred',
           attributes: ['id', 'name', 'email'],
           required: false,
@@ -202,31 +211,39 @@ export const getAllReferrals = async (req, res) => {
     const grouped = {};
 
     for (const r of referrals) {
-      const refId = r.Referrer.id;
+      const referrer = r.Referrer;
+      if (!referrer) continue; // Skip if no referrer user
+
+      const refId = referrer.id;
 
       if (!grouped[refId]) {
         grouped[refId] = {
-          referrerId: r.Referrer.id,
-          referrerName: r.Referrer.name,
-          referrerEmail: r.Referrer.email,
+          referrerId: referrer.id,
+          referrerName: referrer.name || '',
+          referrerEmail: referrer.email || '',
           referredUsers: [],
           referredCount: 0,
         };
       }
 
+      // Always push referral entry (even if not used)
       grouped[refId].referredUsers.push({
         referralId: r.id,
         id: r.Referred?.id || null,
-        name: r.Referred?.name || r.referred_name,
-        email: r.Referred?.email || r.referred_email,
-        status: r.status,
-        rewardGiven: r.reward_given,
-        rewardType: r.reward_type,
-        rewardValue: r.reward_value,
-        referredAt: r.referred_at,
+         code: r.code || '',
+        name: r.Referred?.name || r.referred_name || '',
+        email: r.Referred?.email || r.referred_email || '',
+        status: r.status || 'pending',
+        rewardGiven: r.reward_given || false,
+        rewardType: r.reward_type || '',
+        rewardValue: r.reward_value || '',
+        referredAt: r.referred_at || null,
       });
 
-      grouped[refId].referredCount++;
+      // ✅ Only count referral if actually applied and converted
+      if (r.referred_user_id && r.status === 'converted') {
+        grouped[refId].referredCount++;
+      }
     }
 
     const final = Object.values(grouped);
@@ -236,6 +253,7 @@ export const getAllReferrals = async (req, res) => {
     return res.status(500).json({ status: false, message: 'Internal Server Error' });
   }
 };
+
 
 // ✅ 5. Mark reward as given (Updated for student/tutor + subscription)
 export const markRewardGiven = async (req, res) => {

@@ -24,6 +24,8 @@ import couponRoutes from './coupon.route.js';
 import analyticsRoutes from './analytics.routes.js';
 import notificationRoutes from './notification.route.js';
 import invoiceRoutes from './invoice.route.js';
+import groupRoutes from './group.routes.js'; 
+
 
 const routes = () => {
   router.get('/', (req, res) => {
@@ -52,6 +54,8 @@ const routes = () => {
   router.use('/analytics', analyticsRoutes);
   router.use('/notifications', notificationRoutes);
   router.use('/invoices', invoiceRoutes);
+  router.use('/groups', groupRoutes);
+
 
   return router;
 };

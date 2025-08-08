@@ -16,7 +16,8 @@ import Message from './message.js';
 import Bookmark from './bookmark.js';
 import Conversation from './conversation.js';
 import ReferralCode from './referralCode.model.js';
-
+import Group from './group.js';
+import GroupMember from './groupMember.js';
 const db = {};
 db.sequelize = sequelize;
 
@@ -44,6 +45,8 @@ db.Notification = Notification;
 db.Location = Location;
 db.Enquiry = Enquiry;
 db.ClassSchedule = ClassSchedule;
+db.Group = Group;
+db.GroupMember = GroupMember;//class schedule new groups
 db.Message = Message;
 db.Bookmark = Bookmark;
 db.Conversation = Conversation;
@@ -88,6 +91,19 @@ db.User.hasMany(db.ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasse
 
 db.ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
 db.ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
+
+//group class
+// Group → Members
+db.Group.hasMany(db.GroupMember, { foreignKey: 'group_id', as: 'Members' });
+db.GroupMember.belongsTo(db.Group, { foreignKey: 'group_id' });
+
+// Group → Classes
+db.Group.hasMany(db.ClassSchedule, { foreignKey: 'group_id' });
+db.ClassSchedule.belongsTo(db.Group, { foreignKey: 'group_id' });
+
+// GroupMember → User
+db.GroupMember.belongsTo(db.User, { foreignKey: 'user_id' });
+db.User.hasMany(db.GroupMember, { foreignKey: 'user_id' });
 
 // Messages (enquiry-threaded)
 db.Enquiry.hasMany(db.Message, { foreignKey: 'enquiry_id', as: 'Messages' });
