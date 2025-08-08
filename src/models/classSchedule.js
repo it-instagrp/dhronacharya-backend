@@ -41,6 +41,15 @@ const ClassSchedule = sequelize.define('ClassSchedule', {
       }
     }
   },
+  group_id: {
+  type: DataTypes.UUID,
+  allowNull: true, // Optional: means class can be either individual or group
+  references: {
+    model: 'groups', // table name must match the tableName in your Group model
+    key: 'id'
+  }
+},
+
   date_time: { 
     type: DataTypes.DATE, 
     allowNull: false,
