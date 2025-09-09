@@ -26,8 +26,7 @@ import notificationRoutes from './notification.route.js';
 import invoiceRoutes from './invoice.route.js';
 import groupRoutes from './group.routes.js';
 import reviewRoutes from './review.routes.js';
-
-
+import subjectRoutes from './subject.routes.js';
 
 
 
@@ -61,6 +60,8 @@ const routes = () => {
   router.use('/groups', groupRoutes);
   // inside routes()
 router.use('/reviews', reviewRoutes);
+
+router.use('/subjects', subjectRoutes);
 
 
   return router;

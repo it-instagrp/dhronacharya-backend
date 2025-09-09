@@ -14,8 +14,8 @@ import { getPlaceDetailsFromGoogle, getLocationFromPincode } from "../utils/goog
 const { User, Admin, Tutor, Student, Location } = db;
 import sequelize from '../config/database.js';
 
-// 🔐 Generate JWT Token
-// 🔐 Generate JWT Token
+// Generate JWT Token
+
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role },
@@ -24,13 +24,14 @@ const generateToken = (user) => {
   );
 };
 
-// 🔐 Generate 6-digit OTP
+// Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// ✅ Signup + Send OTP
-// ✅ Signup + Send OTP
+// Signup + Send OTP
+
+// ✅ Signup Controller
 export const signup = async (req, res) => {
   const {
     email,
@@ -59,26 +60,65 @@ export const signup = async (req, res) => {
   } = req.body;
 
   try {
-    // Check for existing user
+    const now = new Date();
+
     const existingUser = await User.findOne({
       where: {
         [sequelize.Sequelize.Op.or]: [{ email }, { mobile_number }]
       }
     });
+
     if (existingUser) {
-      return res.status(HttpStatus.CONFLICT).json({
-        message: "Email or mobile number already registered"
-      });
+      // ✅ Already verified
+      if (existingUser.is_active) {
+        return res.status(HttpStatus.CONFLICT).json({
+          message: "Email or mobile number already registered"
+        });
+      }
+
+      // ✅ Stale account (>30min) → delete & allow fresh signup
+      const createdAt = new Date(existingUser.created_at);
+      if (now - createdAt > 30 * 60 * 1000) {
+        await User.destroy({ where: { id: existingUser.id } });
+      } else {
+        // ✅ Unverified user → always resend OTP
+        const otp = generateOTP();
+        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+        await existingUser.update({
+          otp_secret: otpHash,
+          otp_expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          last_otp_sent_at: now
+        });
+
+        if (existingUser.email) {
+          await sendEmail(
+            existingUser.email,
+            "Verify Your Dronacharya Account",
+            templates.otp.signup.email({ otp, userName: existingUser.name })
+          );
+        }
+        if (existingUser.mobile_number) {
+          await sendSMS(
+            existingUser.mobile_number,
+            templates.otp.signup.sms({ otp })
+          );
+        }
+
+        return res.status(HttpStatus.CONFLICT).json({
+          message: "Account already exists but not verified. New OTP sent.",
+          user_id: existingUser.id
+        });
+      }
     }
 
-    // Generate OTP (common for all roles)
+    // ✅ Fresh signup flow
     const otp = generateOTP();
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
     let user;
 
     if (role === "student") {
-      // 🎓 Student: No password
       user = await User.create({
         name,
         email,
@@ -87,10 +127,10 @@ export const signup = async (req, res) => {
         password_hash: null,
         otp_secret: otpHash,
         otp_expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        last_otp_sent_at: now,
         is_active: false
       });
 
-      // ✅ Only link temp_student if exists
       if (temp_student_id) {
         await Student.update(
           { user_id: user.id },
@@ -99,7 +139,6 @@ export const signup = async (req, res) => {
       } else {
         let finalLocationId = location_id || null;
 
-        // 🔹 Handle place_id
         if (place_id) {
           const details = await getPlaceDetailsFromGoogle(place_id);
           let location = await Location.findOne({ where: { place_id } });
@@ -107,9 +146,7 @@ export const signup = async (req, res) => {
             location = await Location.create(details);
           }
           finalLocationId = location.id;
-        }
-        // 🔹 Handle pincode + country
-        else if (pincode && country) {
+        } else if (pincode && country) {
           const details = await getLocationFromPincode(pincode, country);
           let location = await Location.findOne({
             where: { pincode: details.pincode, country: details.country }
@@ -139,7 +176,6 @@ export const signup = async (req, res) => {
         });
       }
     } else {
-      // 👨‍🏫 Admin/Tutor: Require password
       if (!password) {
         return res.status(HttpStatus.BAD_REQUEST).json({
           message: "Password is required for this role"
@@ -156,6 +192,7 @@ export const signup = async (req, res) => {
         role,
         otp_secret: otpHash,
         otp_expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        last_otp_sent_at: now,
         is_active: false
       });
 
@@ -172,7 +209,7 @@ export const signup = async (req, res) => {
       }
     }
 
-    // Send OTP
+    // ✅ Send OTP to email & SMS
     if (email) {
       await sendEmail(
         email,
@@ -197,6 +234,7 @@ export const signup = async (req, res) => {
   }
 };
 
+
 // ✅ Verify Signup OTP
 export const verifyOTP = async (req, res) => {
   const {
@@ -206,8 +244,8 @@ export const verifyOTP = async (req, res) => {
     subjects,
     location_id,
     place_id,
-    pincode,          // 🔹 NEW
-    country,          // 🔹 NEW
+    pincode,
+    country,
     class_modes,
     profile_photo,
     languages,
@@ -232,7 +270,7 @@ export const verifyOTP = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Validate OTP
+    // ✅ Validate OTP
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
     if (
       user.otp_secret !== otpHash ||
@@ -242,21 +280,19 @@ export const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    // Activate user
+    // ✅ Activate user
     user.is_active = true;
     user.otp_secret = null;
     user.otp_expires_at = null;
     await user.save();
 
-    // For students: create or link verified student record
+    // ✅ Ensure student record exists after verification
     if (user.role === "student") {
       let student = await Student.findOne({ where: { user_id: user.id } });
 
       if (!student) {
-        // Create new student record
         let finalLocationId = location_id || null;
 
-        // 🔹 Handle Google place_id
         if (place_id) {
           const details = await getPlaceDetailsFromGoogle(place_id);
           let location = await Location.findOne({ where: { place_id } });
@@ -264,9 +300,7 @@ export const verifyOTP = async (req, res) => {
             location = await Location.create(details);
           }
           finalLocationId = location.id;
-        }
-        // 🔹 Handle global pincode + country
-        else if (pincode && country) {
+        } else if (pincode && country) {
           const details = await getLocationFromPincode(pincode, country);
           let location = await Location.findOne({
             where: { pincode: details.pincode, country: details.country }
@@ -297,7 +331,7 @@ export const verifyOTP = async (req, res) => {
       }
     }
 
-    // Generate JWT
+    // ✅ Generate JWT
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,

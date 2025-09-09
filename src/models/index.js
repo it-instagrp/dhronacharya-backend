@@ -20,6 +20,8 @@ import Group from './group.js';
 import GroupMember from './groupMember.js';
 import Review from './review.js';
 import ReviewComment from './reviewComment.js';
+import Class from './class.js';
+import Subject from './subject.js';
 
 const db = {};
 db.sequelize = sequelize;
@@ -29,6 +31,8 @@ db.User = User;
 db.Admin = Admin;
 db.Tutor = Tutor;
 db.Student = Student;
+db.Class = Class;
+db.Subject = Subject;
 
 // Role associations
 db.User.hasOne(db.Admin, { foreignKey: 'user_id' });
@@ -56,6 +60,9 @@ db.Conversation = Conversation;
 db.Review = Review;
 db.ReviewComment = ReviewComment;
 
+
+db.Class.hasMany(db.Subject, { foreignKey: 'class_id', as: 'subjects' });
+db.Subject.belongsTo(db.Class, { foreignKey: 'class_id', as: 'class' });
 
 // Subscription & payment
 db.User.hasMany(db.Payment, { foreignKey: 'user_id' });
