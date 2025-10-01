@@ -35,13 +35,13 @@ db.Class = Class;
 db.Subject = Subject;
 
 // Role associations
-db.User.hasOne(db.Admin, { foreignKey: 'user_id' });
-db.User.hasOne(db.Tutor, { foreignKey: 'user_id' });
-db.User.hasOne(db.Student, { foreignKey: 'user_id' });
+db.User.hasOne(db.Admin, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.User.hasOne(db.Tutor, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.User.hasOne(db.Student, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 
-db.Admin.belongsTo(db.User, { foreignKey: 'user_id' });
-db.Tutor.belongsTo(db.User, { foreignKey: 'user_id' });
-db.Student.belongsTo(db.User, { foreignKey: 'user_id' });
+db.Admin.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.Tutor.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.Student.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 
 // Other models
 db.SubscriptionPlan = SubscriptionPlan;
@@ -61,111 +61,112 @@ db.Review = Review;
 db.ReviewComment = ReviewComment;
 
 
-db.Class.hasMany(db.Subject, { foreignKey: 'class_id', as: 'subjects' });
-db.Subject.belongsTo(db.Class, { foreignKey: 'class_id', as: 'class' });
+db.Class.hasMany(db.Subject, { foreignKey: 'class_id', as: 'subjects',onDelete: 'CASCADE' });
+db.Subject.belongsTo(db.Class, { foreignKey: 'class_id', as: 'class',onDelete: 'CASCADE' });
 
 // Subscription & payment
-db.User.hasMany(db.Payment, { foreignKey: 'user_id' });
-db.Payment.belongsTo(db.User, { foreignKey: 'user_id' });
+db.User.hasMany(db.Payment, { foreignKey: 'user_id',onDelete: 'CASCADE' });
+db.Payment.belongsTo(db.User, { foreignKey: 'user_id' ,onDelete: 'CASCADE'});
 
-db.SubscriptionPlan.hasMany(db.Payment, { foreignKey: 'plan_id' });
-db.Payment.belongsTo(db.SubscriptionPlan, { foreignKey: 'plan_id' });
+db.SubscriptionPlan.hasMany(db.Payment, { foreignKey: 'plan_id' ,onDelete: 'CASCADE'});
+db.Payment.belongsTo(db.SubscriptionPlan, { foreignKey: 'plan_id',onDelete: 'CASCADE' });
 
-db.User.hasMany(db.UserSubscription, { foreignKey: 'user_id' });
-db.UserSubscription.belongsTo(db.User, { foreignKey: 'user_id' });
+db.User.hasMany(db.UserSubscription, { foreignKey: 'user_id',onDelete: 'CASCADE' });
+db.UserSubscription.belongsTo(db.User, { foreignKey: 'user_id',onDelete: 'CASCADE' });
 
-db.SubscriptionPlan.hasMany(db.UserSubscription, { foreignKey: 'plan_id' });
-db.UserSubscription.belongsTo(db.SubscriptionPlan, { foreignKey: 'plan_id' });
+db.SubscriptionPlan.hasMany(db.UserSubscription, { foreignKey: 'plan_id',onDelete: 'CASCADE' });
+db.UserSubscription.belongsTo(db.SubscriptionPlan, { foreignKey: 'plan_id',onDelete: 'CASCADE'});
 
-db.Payment.hasOne(db.UserSubscription, { foreignKey: 'payment_id' });
-db.UserSubscription.belongsTo(db.Payment, { foreignKey: 'payment_id' });
+db.Payment.hasOne(db.UserSubscription, { foreignKey: 'payment_id',onDelete: 'CASCADE' });
+db.UserSubscription.belongsTo(db.Payment, { foreignKey: 'payment_id',onDelete: 'CASCADE' });
 
 // Notifications
-db.User.hasMany(db.Notification, { foreignKey: 'user_id' });
-db.Notification.belongsTo(db.User, { foreignKey: 'user_id' });
-db.User.hasMany(db.Notification, { foreignKey: 'sent_by', as: 'SentNotifications' });
-db.Notification.belongsTo(db.User, { foreignKey: 'sent_by', as: 'Sender' });
+db.User.hasMany(db.Notification, { foreignKey: 'user_id',onDelete: 'CASCADE' });
+db.Notification.belongsTo(db.User, { foreignKey: 'user_id',onDelete: 'CASCADE' });
+db.User.hasMany(db.Notification, { foreignKey: 'sent_by', as: 'SentNotifications' ,onDelete: 'CASCADE'});
+db.Notification.belongsTo(db.User, { foreignKey: 'sent_by', as: 'Sender',onDelete: 'CASCADE' });
 
 
 // Locations
-db.Tutor.belongsTo(db.Location, { foreignKey: 'location_id' });
-db.Student.belongsTo(db.Location, { foreignKey: 'location_id' });
+db.Tutor.belongsTo(db.Location, { foreignKey: 'location_id',onDelete: 'CASCADE' });
+db.Student.belongsTo(db.Location, { foreignKey: 'location_id',onDelete: 'CASCADE' });
 
 // Enquiries
-db.User.hasMany(db.Enquiry, { foreignKey: 'sender_id', as: 'SentEnquiries' });
-db.User.hasMany(db.Enquiry, { foreignKey: 'receiver_id', as: 'ReceivedEnquiries' });
+db.User.hasMany(db.Enquiry, { foreignKey: 'sender_id', as: 'SentEnquiries',onDelete: 'CASCADE' });
+db.User.hasMany(db.Enquiry, { foreignKey: 'receiver_id', as: 'ReceivedEnquiries' ,onDelete: 'CASCADE'});
 
-db.Enquiry.belongsTo(db.User, { foreignKey: 'sender_id', as: 'Sender' });
-db.Enquiry.belongsTo(db.User, { foreignKey: 'receiver_id', as: 'Receiver' });
+db.Enquiry.belongsTo(db.User, { foreignKey: 'sender_id', as: 'Sender',onDelete: 'CASCADE'});
+db.Enquiry.belongsTo(db.User, { foreignKey: 'receiver_id', as: 'Receiver',onDelete: 'CASCADE' });
 
 // Class schedules
-db.User.hasMany(db.ClassSchedule, { foreignKey: 'tutor_id', as: 'TutorClasses' });
-db.User.hasMany(db.ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasses' });
+db.User.hasMany(db.ClassSchedule, { foreignKey: 'tutor_id', as: 'TutorClasses',onDelete: 'CASCADE' });
+db.User.hasMany(db.ClassSchedule, { foreignKey: 'student_id', as: 'StudentClasses',onDelete: 'CASCADE' });
 
-db.ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
-db.ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
+db.ClassSchedule.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' ,onDelete: 'CASCADE'});
+db.ClassSchedule.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student',onDelete: 'CASCADE' });
 
 //group class
 // Group → Members
-db.Group.hasMany(db.GroupMember, { foreignKey: 'group_id', as: 'Members' });
-db.GroupMember.belongsTo(db.Group, { foreignKey: 'group_id' });
+db.Group.hasMany(db.GroupMember, { foreignKey: 'group_id', as: 'Members' ,onDelete: 'CASCADE'});
+db.GroupMember.belongsTo(db.Group, { foreignKey: 'group_id' ,onDelete: 'CASCADE'});
 
 // Group → Classes
-db.Group.hasMany(db.ClassSchedule, { foreignKey: 'group_id' });
-db.ClassSchedule.belongsTo(db.Group, { foreignKey: 'group_id' });
+db.Group.hasMany(db.ClassSchedule, { foreignKey: 'group_id',onDelete: 'CASCADE' });
+db.ClassSchedule.belongsTo(db.Group, { foreignKey: 'group_id',onDelete: 'CASCADE' });
 
 // GroupMember → User
-db.GroupMember.belongsTo(db.User, { foreignKey: 'user_id' });
-db.User.hasMany(db.GroupMember, { foreignKey: 'user_id' });
+db.User.hasMany(db.GroupMember, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.GroupMember.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+
 
 // Messages (enquiry-threaded)
-db.Enquiry.hasMany(db.Message, { foreignKey: 'enquiry_id', as: 'Messages' });
-db.Message.belongsTo(db.Enquiry, { foreignKey: 'enquiry_id' });
+db.Enquiry.hasMany(db.Message, { foreignKey: 'enquiry_id', as: 'Messages' ,onDelete: 'CASCADE'});
+db.Message.belongsTo(db.Enquiry, { foreignKey: 'enquiry_id', onDelete: 'CASCADE'});
 
-db.User.hasMany(db.Message, { foreignKey: 'sender_id' });
-db.Message.belongsTo(db.User, { foreignKey: 'sender_id' });
+db.User.hasMany(db.Message, { foreignKey: 'sender_id',onDelete: 'CASCADE' });
+db.Message.belongsTo(db.User, { foreignKey: 'sender_id',onDelete: 'CASCADE' });
 
-// ✅ Conversations (direct bookmark chat)
-db.User.hasMany(db.Conversation, { foreignKey: 'student_id', as: 'StudentConversations' });
-db.User.hasMany(db.Conversation, { foreignKey: 'tutor_id', as: 'TutorConversations' });
+// Conversations (direct bookmark chat)
+db.User.hasMany(db.Conversation, { foreignKey: 'student_id', as: 'StudentConversations',onDelete: 'CASCADE' });
+db.User.hasMany(db.Conversation, { foreignKey: 'tutor_id', as: 'TutorConversations' ,onDelete: 'CASCADE'});
 
-db.Conversation.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student' });
-db.Conversation.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor' });
+db.Conversation.belongsTo(db.User, { foreignKey: 'student_id', as: 'Student',onDelete: 'CASCADE' });
+db.Conversation.belongsTo(db.User, { foreignKey: 'tutor_id', as: 'Tutor',onDelete: 'CASCADE' });
 
-db.Conversation.hasMany(db.Message, { foreignKey: 'conversation_id', as: 'Messages' });
-db.Message.belongsTo(db.Conversation, { foreignKey: 'conversation_id' });
+db.Conversation.hasMany(db.Message, { foreignKey: 'conversation_id', as: 'Messages',onDelete: 'CASCADE' });
+db.Message.belongsTo(db.Conversation, { foreignKey: 'conversation_id',onDelete: 'CASCADE' });
 
 // Bookmarks
-db.User.hasMany(db.Bookmark, { foreignKey: 'user_id', as: 'Bookmarks' });
-db.User.hasMany(db.Bookmark, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedBy' });
+db.User.hasMany(db.Bookmark, { foreignKey: 'user_id', as: 'Bookmarks',onDelete: 'CASCADE' });
+db.User.hasMany(db.Bookmark, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedBy',onDelete: 'CASCADE' });
 
-db.Bookmark.belongsTo(db.User, { foreignKey: 'user_id', as: 'User' });
-db.Bookmark.belongsTo(db.User, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedUser' });
+db.Bookmark.belongsTo(db.User, { foreignKey: 'user_id', as: 'User' ,onDelete: 'CASCADE'});
+db.Bookmark.belongsTo(db.User, { foreignKey: 'bookmarked_user_id', as: 'BookmarkedUser',onDelete: 'CASCADE' });
 
 // referral
 db.ReferralCode = ReferralCode;
 
 // Referral Code associations
-db.User.hasMany(db.ReferralCode, { foreignKey: 'referrer_user_id', as: 'ReferralCodes' });
-db.User.hasMany(db.ReferralCode, { foreignKey: 'referred_user_id', as: 'ReferredBy' });
+db.User.hasMany(db.ReferralCode, { foreignKey: 'referrer_user_id', as: 'ReferralCodes',onDelete: 'CASCADE' });
+db.User.hasMany(db.ReferralCode, { foreignKey: 'referred_user_id', as: 'ReferredBy',onDelete: 'CASCADE' });
 
-db.ReferralCode.belongsTo(db.User, { foreignKey: 'referrer_user_id', as: 'Referrer' });
-db.ReferralCode.belongsTo(db.User, { foreignKey: 'referred_user_id', as: 'Referred' });
+db.ReferralCode.belongsTo(db.User, { foreignKey: 'referrer_user_id', as: 'Referrer',onDelete: 'CASCADE' });
+db.ReferralCode.belongsTo(db.User, { foreignKey: 'referred_user_id', as: 'Referred',onDelete: 'CASCADE' });
 
 // cupons 
 // Coupon associations
-db.User.hasMany(db.Coupon, { foreignKey: 'applied_by_user_id', as: 'UsedCoupons' });
-db.Coupon.belongsTo(db.User, { foreignKey: 'applied_by_user_id', as: 'UsedBy' });
+db.User.hasMany(db.Coupon, { foreignKey: 'applied_by_user_id', as: 'UsedCoupons',onDelete: 'CASCADE' });
+db.Coupon.belongsTo(db.User, { foreignKey: 'applied_by_user_id', as: 'UsedBy' ,onDelete: 'CASCADE'});
 
 // Reviews
-db.Review.belongsTo(db.User, { foreignKey: 'reviewer_id', as: 'Reviewer' });
-db.Review.belongsTo(db.Student, { foreignKey: 'reviewer_id', targetKey: 'user_id', as: 'StudentReviewer' });
-db.Review.belongsTo(db.Tutor, { foreignKey: 'tutor_id', targetKey: 'user_id', as: 'Tutor' });
+db.Review.belongsTo(db.User, { foreignKey: 'reviewer_id', as: 'Reviewer',onDelete: 'CASCADE' });
+db.Review.belongsTo(db.Student, { foreignKey: 'reviewer_id', targetKey: 'user_id', as: 'StudentReviewer',onDelete: 'CASCADE' });
+db.Review.belongsTo(db.Tutor, { foreignKey: 'tutor_id', targetKey: 'user_id', as: 'Tutor',onDelete: 'CASCADE' });
 
 // Comments
-db.Review.hasMany(db.ReviewComment, { foreignKey: 'review_id', as: 'comments' });
-db.ReviewComment.belongsTo(db.User, { foreignKey: 'commenter_id', as: 'Commenter' });
-db.ReviewComment.belongsTo(db.Review, { foreignKey: 'review_id' });
+db.Review.hasMany(db.ReviewComment, { foreignKey: 'review_id', as: 'comments',onDelete: 'CASCADE' });
+db.ReviewComment.belongsTo(db.User, { foreignKey: 'commenter_id', as: 'Commenter' ,onDelete: 'CASCADE'});
+db.ReviewComment.belongsTo(db.Review, { foreignKey: 'review_id',onDelete: 'CASCADE' });
 
 
 

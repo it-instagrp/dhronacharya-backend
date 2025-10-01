@@ -2,10 +2,12 @@ import Razorpay from 'razorpay';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../models/index.js';
 
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
+
 
 // ------------------------
 // Create Razorpay Order (with 18% GST)
@@ -13,8 +15,10 @@ const razorpay = new Razorpay({
 export const createOrder = async (req, res) => {
   const { user_id, plan_id } = req.body;
 
+
   try {
     console.log('📥 Create Order Request:', { user_id, plan_id });
+
 
     const plan = await db.SubscriptionPlan.findByPk(plan_id);
     if (!plan) {
@@ -22,19 +26,24 @@ export const createOrder = async (req, res) => {
       return res.status(404).json({ message: 'Plan not found' });
     }
 
+
     // Base price from DB
     const basePrice = parseFloat(plan.price);
+
 
     // Apply GST (18%)
     const gstRate = 18;
     const gstAmount = (basePrice * gstRate) / 100;
     const finalPrice = basePrice + gstAmount; // total payable
 
+
     // Razorpay expects amount in paise
     const amount = Math.round(finalPrice * 100);
 
+
     // ✅ Fix: Razorpay receipt max length = 40 characters
     const shortReceipt = `rcpt_${Date.now()}_${user_id.slice(0, 6)}`.slice(0, 40);
+
 
     const order = await razorpay.orders.create({
       amount,
@@ -42,21 +51,25 @@ export const createOrder = async (req, res) => {
       receipt: shortReceipt,
     });
 
+
     console.log('✅ Razorpay Order Created:', order.id);
+
 
     const payment = await db.Payment.create({
       user_id,
       plan_id,
       razorpay_order_id: order.id,
-      base_amount: basePrice,     // 💰 store before GST
-      tax_percentage: gstRate,    // 💰 GST %
-      tax_amount: gstAmount,      // 💰 GST value
-      amount: finalPrice,         // 💰 total (base + GST)
+      base_amount: basePrice,     //  store before GST
+      tax_percentage: gstRate,    //  GST %
+      tax_amount: gstAmount,      //  GST value
+      amount: finalPrice,         //  total (base + GST)
       currency: 'INR',
       status: 'created',
     });
 
+
     console.log('✅ Payment record created:', payment.id);
+
 
     res.json({
       order_id: order.id,
@@ -68,11 +81,14 @@ export const createOrder = async (req, res) => {
       payment_id: payment.id,
     });
 
+
   } catch (err) {
     console.error('❌ Error in createOrder:', err);
     res.status(500).json({ message: 'Error creating order', error: err.message });
   }
 };
+
+
 
 
 // ------------------------
@@ -81,8 +97,10 @@ export const createOrder = async (req, res) => {
 export const verifyPayment = async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
+
   try {
     console.log('📥 Verifying Payment:', { razorpay_order_id });
+
 
     const payment = await db.Payment.findOne({ where: { razorpay_order_id } });
     if (!payment) {
@@ -90,15 +108,18 @@ export const verifyPayment = async (req, res) => {
       return res.status(404).json({ message: 'Payment not found' });
     }
 
+
     payment.razorpay_payment_id = razorpay_payment_id;
     payment.status = 'paid';
     payment.payment_gateway_response = req.body;
     await payment.save();
 
+
     const plan = await db.SubscriptionPlan.findByPk(payment.plan_id);
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + plan.duration_days);
+
 
     await db.UserSubscription.create({
       user_id: payment.user_id,
@@ -110,13 +131,17 @@ export const verifyPayment = async (req, res) => {
       is_active: true,
     });
 
+
     console.log('✅ Subscription activated');
 
+
     res.json({ message: 'Payment verified and subscription activated' });
+
 
   } catch (err) {
     console.error('❌ Error in verifyPayment:', err);
     res.status(500).json({ message: 'Verification failed', error: err.message });
   }
 };
+
 

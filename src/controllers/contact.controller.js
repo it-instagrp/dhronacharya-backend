@@ -1,7 +1,9 @@
 // src/controllers/contact.controller.js
 import db from '../models/index.js';
 
+
 const { UserSubscription, User } = db;
+
 
 // ✅ View Contact API (with subscription contact count check)
 export const viewContact = async (req, res) => {
@@ -9,11 +11,13 @@ export const viewContact = async (req, res) => {
   const viewerUserId = req.user.id;
   const { subscription } = req; // Set by middleware (can be null/undefined)
 
+
   try {
     // 🚫 Prevent viewing own contact
     if (viewerUserId === targetUserId) {
       return res.status(400).json({ message: 'You cannot view your own contact info.' });
     }
+
 
     // ❌ If no active subscription
     if (!subscription) {
@@ -22,6 +26,7 @@ export const viewContact = async (req, res) => {
       });
     }
 
+
     // ❌ If subscription has 0 contacts remaining
     if (subscription.contacts_remaining <= 0) {
       return res.status(403).json({
@@ -29,18 +34,22 @@ export const viewContact = async (req, res) => {
       });
     }
 
+
     // ✅ Find the target user
     const targetUser = await User.findByPk(targetUserId, {
       attributes: ['id', 'email', 'mobile_number', 'role', 'is_active']
     });
 
+
     if (!targetUser || !targetUser.is_active) {
       return res.status(404).json({ message: 'Target user not found or inactive.' });
     }
 
+
     // ✅ Decrement contact view count
     subscription.contacts_remaining -= 1;
     await subscription.save();
+
 
     return res.status(200).json({
       message: 'Contact viewed successfully.',

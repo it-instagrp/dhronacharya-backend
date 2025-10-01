@@ -1,6 +1,6 @@
-// ================================
-// 📁 src/controllers/admin.controller.js
-// ================================
+
+//  src/controllers/admin.controller.js
+import HttpStatus from 'http-status-codes';
 
 import db from '../models/index.js';
 import { Op } from 'sequelize';
@@ -8,7 +8,10 @@ import fs from 'fs';
 import path from 'path';
 import { sendNotification } from '../utils/notification.js';
 import { differenceInDays } from 'date-fns';
-
+import bcrypt from 'bcrypt';
+import csv from 'csv-parser';
+import XLSX from 'xlsx';
+import { getPlaceDetailsFromGoogle } from '../utils/googlePlacesService.js';
 const {
   User,
   Student,
@@ -19,7 +22,7 @@ const {
   SubscriptionPlan
 } = db;
 
-// 🧑‍🎓 Get all Students
+// Get all Students
 export const getAllStudents = async (req, res) => {
   try {
     const students = await Student.findAll({
@@ -33,12 +36,15 @@ export const getAllStudents = async (req, res) => {
         'availability',
         'hourly_charges',
         'start_timeline',
-        'tutor_gender_preference'
+        'tutor_gender_preference',
+        'createdAt',
+        'updatedAt'
       ],
       include: [
         {
           model: User,
           attributes: ['id', 'email', 'mobile_number', 'is_active'],
+          where: { is_active: true },   // ✅ Only active (verified) users
           include: [
             {
               model: UserSubscription,
@@ -84,7 +90,7 @@ export const getAllStudents = async (req, res) => {
   }
 };
 
-// 🧑‍🏫 Get all Tutors
+// Get all Tutors
 export const getAllTutors = async (req, res) => {
   try {
     const tutors = await Tutor.findAll({
@@ -154,7 +160,7 @@ export const getAllTutors = async (req, res) => {
   }
 };
 
-// ✅ Update Tutor Status (approve/reject)
+// Update Tutor Status (approve/reject)
 export const updateTutorStatus = async (req, res) => {
   const { user_id } = req.params;
   const { profile_status } = req.body;
@@ -176,28 +182,71 @@ export const updateTutorStatus = async (req, res) => {
   }
 };
 
-// ❌ Delete User (and profile)
+// Delete User (and profile)
 export const deleteUser = async (req, res) => {
   const { user_id } = req.params;
+
   try {
     const user = await User.findByPk(user_id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    // Delete profile and files
     if (user.role === 'student') {
-      await Student.destroy({ where: { user_id } });
+      const student = await Student.findOne({ where: { user_id } });
+
+      if (student) {
+        if (student.profile_photo) {
+          const photoPath = path.join(process.cwd(), student.profile_photo);
+          if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
+        }
+        await student.destroy();
+      }
     } else if (user.role === 'tutor') {
-      await Tutor.destroy({ where: { user_id } });
+      const tutor = await Tutor.findOne({ where: { user_id } });
+
+      if (tutor) {
+        if (tutor.profile_photo) {
+          const photoPath = path.join(process.cwd(), tutor.profile_photo);
+          if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
+        }
+
+        if (tutor.documents && Array.isArray(tutor.documents)) {
+          for (const docPath of tutor.documents) {
+            const fullPath = path.join(process.cwd(), docPath);
+            if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+          }
+        }
+        await tutor.destroy();
+      }
     }
 
-    await User.destroy({ where: { id: user_id } });
+    // Delete user subscriptions
+    await UserSubscription.destroy({ where: { user_id } });
 
-    return res.status(200).json({ message: 'User and profile deleted' });
+    // Delete enquiries (your enquiry model uses sender_id/receiver_id)
+    await Enquiry.destroy({
+      where: { [Op.or]: [{ sender_id: user_id }, { receiver_id: user_id }] }
+    });
+
+    //  Skip ContactLog since it's not defined in db
+    // await db.ContactLog.destroy({
+    //   where: { [Op.or]: [{ viewer_id: user_id }, { target_id: user_id }] }
+    // });
+
+    // Delete notifications
+    await db.Notification.destroy({ where: { user_id } });
+
+    // Finally, delete the user
+    await user.destroy();
+
+    return res.status(200).json({ message: 'User, profile, and all related data deleted successfully' });
   } catch (err) {
+    console.error('Delete user error:', err);
     return res.status(500).json({ message: 'Failed to delete user', error: err.message });
   }
 };
 
-// 🔒 Block / Unblock User
+// Block / Unblock User
 export const blockUnblockUser = async (req, res) => {
   const { user_id } = req.params;
   const { is_active } = req.body;
@@ -215,7 +264,7 @@ export const blockUnblockUser = async (req, res) => {
   }
 };
 
-// ✏️ Update Student (extended)
+// Update Student (extended)
 export const updateStudentByAdmin = async (req, res) => {
   const { user_id } = req.params;
   const {
@@ -260,7 +309,7 @@ export const updateStudentByAdmin = async (req, res) => {
   }
 };
 
-// ✏️ Update Tutor (extended)
+// Update Tutor (extended)
 export const updateTutorByAdmin = async (req, res) => {
   const { user_id } = req.params;
   const {
@@ -305,7 +354,7 @@ export const updateTutorByAdmin = async (req, res) => {
   }
 };
 
-// 📊 Admin Dashboard Summary
+// Admin Dashboard Summary
 export const getDashboardSummary = async (req, res) => {
   try {
     const totalStudents = await Student.count();
@@ -344,12 +393,12 @@ export const getDashboardSummary = async (req, res) => {
       recentSubscriptions
     });
   } catch (error) {
-    console.error('❌ Dashboard error:', error);
+    console.error('Dashboard error:', error);
     res.status(500).json({ message: 'Failed to load dashboard data', error: error.message });
   }
 };
 
-// 🕵️ Get all pending tutor verifications
+// Get all pending tutor verifications
 export const getPendingVerifications = async (req, res) => {
   try {
     const pendingTutors = await db.Tutor.findAll({
@@ -363,7 +412,7 @@ export const getPendingVerifications = async (req, res) => {
   }
 };
 
-// ✅ Verify Tutor Profile (approve/reject)
+// Verify Tutor Profile (approve/reject)
 export const verifyTutorProfile = async (req, res) => {
   const { user_id } = req.params;
   const { action } = req.body;
@@ -385,7 +434,7 @@ export const verifyTutorProfile = async (req, res) => {
   }
 };
 
-// 🧹 Admin delete user profile photo (student/tutor)
+// Admin delete user profile photo (student/tutor)
 export const adminDeleteProfilePhoto = async (req, res) => {
   const { user_id, role } = req.params;
 
@@ -422,7 +471,7 @@ export const adminDeleteProfilePhoto = async (req, res) => {
   }
 };
 
-// 📞 Contact logs
+//  Contact logs
 export const getContactLogs = async (req, res) => {
   try {
     const logs = await db.ContactLog.findAll({
@@ -439,9 +488,9 @@ export const getContactLogs = async (req, res) => {
   }
 };
 
-// 🔧 Role-based message wrapper
-// ✅ Templates that should use formatted content
-// ✅ Templates that should use formatted content
+
+// Templates that should use formatted content
+
 const templatesWithFormatting = [
   'general',
   'ImportantUpdate',
@@ -449,7 +498,7 @@ const templatesWithFormatting = [
   'enquiryReceived'
 ];
 
-// ✅ Format message content based on role + template
+// Format message content based on role + template
 const generateRoleBasedContent = (role, content, template_name, formatted) => {
   const name = role === 'tutor' ? 'Tutor' : 'Student';
 
@@ -468,15 +517,15 @@ const generateRoleBasedContent = (role, content, template_name, formatted) => {
   };
 };
 
-// ✅ Helper: get recipient based on notification type
+// Helper: get recipient based on notification type
 const getRecipient = (user, type) => {
   switch (type) {
     case 'email':
       return user.email;
     case 'sms':
-      return user.mobile_number; // ✅ use correct DB field
+      return user.mobile_number; // use correct DB field
     case 'whatsapp': {
-      let to = user.mobile_number; // ✅ not user.mobile
+      let to = user.mobile_number; //not user.mobile
       if (!to) return null;
       if (!to.startsWith('+')) {
         to = `+91${to}`; // default India country code
@@ -490,17 +539,26 @@ const getRecipient = (user, type) => {
 
 
 
-// ✅ Send message/alert to single user
-// ✅ Single message to a user
+//  Send message/alert to single user
+//  Single message to a user
 export const sendUserMessage = async (req, res) => {
-  const { user_id, type, template_name, content, formatted } = req.body;
+  const { user_id, name, type, template_name, content, formatted } = req.body;
   const senderId = req.user?.id;
 
   try {
-    const [user, senderUser] = await Promise.all([
-      db.User.findByPk(user_id),
-      db.User.findByPk(senderId),
-    ]);
+    let user;
+
+    if (user_id) {
+      // fetch by ID
+      user = await db.User.findByPk(user_id);
+    } else if (name) {
+      //  fetch by name
+      user = await db.User.findOne({ where: { name } });
+    } else {
+      return res.status(400).json({ message: 'Either user_id or name is required' });
+    }
+
+    const senderUser = await db.User.findByPk(senderId);
 
     if (!user || !['tutor', 'student'].includes(user.role)) {
       return res.status(404).json({ message: 'User not found or invalid role' });
@@ -519,7 +577,7 @@ export const sendUserMessage = async (req, res) => {
     );
 
     const notification = await db.Notification.create({
-      user_id,
+      user_id: user.id, // always store the real ID in DB
       type,
       template_name,
       recipient,
@@ -556,7 +614,7 @@ export const sendUserMessage = async (req, res) => {
 };
 
 
-// ✅ Bulk send to tutors or students with filters
+// Bulk send to tutors or students with filters
 export const sendBulkUserMessage = async (req, res) => {
   const { role, type, template_name, content, formatted, filter = {} } = req.body;
   const senderId = req.user?.id;
@@ -633,12 +691,283 @@ export const sendBulkUserMessage = async (req, res) => {
     }
 
     res.status(200).json({
-      message: `✅ Message sent to ${sentTo.length} ${role}${sentTo.length > 1 ? 's' : ''}`,
+      message: `Message sent to ${sentTo.length} ${role}${sentTo.length > 1 ? 's' : ''}`,
       recipients: sentTo,
       sent_by_role: senderUser?.role || 'admin-system'
     });
   } catch (err) {
-    console.error('❌ Bulk message error:', err);
+    console.error('Bulk message error:', err);
     res.status(500).json({ message: 'Bulk message failed', error: err.message });
+  }
+};
+
+
+export const createTutorByAdmin = async (req, res) => {
+  const {
+    name,
+    email,
+    mobile_number,
+    subjects,
+    classes,
+    degrees,
+    profile_status,
+    profile_photo,
+    languages,
+    experience,
+    pricing_per_hour,
+    introduction_text,
+    teaching_modes,
+    introduction_video,
+    documents
+  } = req.body;
+
+  try {
+    // 🔑 Default password
+    const defaultPassword = "Tutor@123";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // 1️⃣ Create User
+    const user = await db.User.create({
+      name,
+      email,
+      mobile_number,
+      role: 'tutor',
+      password_hash: hashedPassword,
+      is_active: true
+    });
+
+    // 2️⃣ Create Tutor Profile
+    const tutor = await db.Tutor.create({
+      user_id: user.id,
+      name,
+      subjects,
+      classes,
+      degrees,
+      profile_status: profile_status || 'approved',
+      profile_photo,
+      languages,
+      experience,
+      pricing_per_hour,
+      introduction_text,
+      teaching_modes,
+      introduction_video,
+      documents
+    });
+
+    return res.status(201).json({
+      message: 'Tutor created successfully by Admin',
+      user,
+      tutor,
+      defaultPassword // ⚠️ Optional: return so Admin knows what was set
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to create tutor', error: error.message });
+  }
+};
+
+
+export const bulkUploadTutors = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    const originalName = req.file.originalname.toLowerCase();
+    let tutors = [];
+
+    // 1️Excel (.xlsx / .xls)
+    if (originalName.endsWith('.xlsx') || originalName.endsWith('.xls')) {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      tutors = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    }
+    // 2️CSV
+    else if (originalName.endsWith('.csv')) {
+      const rows = [];
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on('data', (row) => rows.push(row))
+          .on('end', () => {
+            tutors = rows;
+            resolve();
+          })
+          .on('error', reject);
+      });
+    }
+    // 3️⃣ Unsupported file type
+    else {
+      return res
+        .status(400)
+        .json({ message: 'Unsupported file format. Use CSV or Excel.' });
+    }
+
+    // 🔧 Normalize helper
+    const normalizeArray = (val) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      return String(val)
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    };
+
+    let createdCount = 0;
+    const defaultPassword = 'Tutor@123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    for (const row of tutors) {
+      // Handle location
+      let location_id = null;
+      if (row.place_id) {
+        const locationDetails = await getPlaceDetailsFromGoogle(row.place_id);
+        const [loc] = await db.Location.upsert(
+          { place_id: row.place_id, ...locationDetails },
+          { returning: true }
+        );
+        location_id = loc.id;
+      } else if (row.location_id) {
+        location_id = row.location_id; // direct id
+      }
+
+      // Create User
+      const [user] = await db.User.findOrCreate({
+        where: { email: row.email },
+        defaults: {
+          name: row.name,
+          email: row.email,
+          mobile_number: row.mobile_number,
+          role: 'tutor',
+          password_hash: hashedPassword,
+          is_active: true,
+        },
+      });
+
+      // Create Tutor
+      const [tutor, tutorCreated] = await db.Tutor.findOrCreate({
+        where: { user_id: user.id },
+        defaults: {
+          name: row.name,
+          subjects: normalizeArray(row.subjects),
+          classes: normalizeArray(row.classes),
+          degrees: normalizeArray(row.degrees),
+          profile_status: row.profile_status || 'approved',
+          profile_photo: row.profile_photo,
+          languages: normalizeArray(row.languages),
+          experience: row.experience,
+          pricing_per_hour: row.pricing_per_hour,
+          introduction_text: row.introduction_text,
+          teaching_modes: normalizeArray(row.teaching_modes),
+          introduction_video: row.introduction_video,
+          documents: normalizeArray(row.documents),
+          location_id, // ✅ added
+        },
+      });
+
+      if (tutorCreated) createdCount++;
+    }
+
+    //  Cleanup
+    fs.unlink(filePath, (err) => {
+      if (err) console.error('Failed to delete temp file:', err);
+    });
+
+    return res.json({
+      message: 'Bulk tutors uploaded successfully',
+      count: createdCount,
+      defaultPassword,
+    });
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    return res
+      .status(500)
+      .json({ message: 'Bulk upload failed', error: error.message });
+  }
+};
+
+export const getStudentEnquiries = async (req, res) => {
+  try {
+    const enquiries = await Student.findAll({
+      include: [
+        {
+          model: User,
+          attributes: ["id", "name", "email", "mobile_number", "is_active"],
+          required: false, // include even if no User linked
+        },
+        {
+          model: Location,
+          attributes: ["id", "country", "state", "city", "pincode"],
+        },
+      ],
+      order: [["created_at", "DESC"]],
+    });
+
+    // ✅ Count total enquiries & verified enquiries
+    const enquiryCountMap = {};
+    const verifiedCountMap = {};
+
+    enquiries.forEach((student) => {
+      const key = student.user_id || `guest-${student.mobile_number || student.name}`;
+      enquiryCountMap[key] = (enquiryCountMap[key] || 0) + 1;
+
+      if (student.User && student.User.is_active) {
+        verifiedCountMap[key] = (verifiedCountMap[key] || 0) + 1;
+      }
+    });
+
+    // ✅ Format response
+    const formatted = enquiries.map((student) => {
+      const key = student.user_id || `guest-${student.mobile_number || student.name}`;
+      return {
+        id: student.id,
+        name: student.name,
+        class: student.class,
+        subjects: student.subjects,
+        board: student.board,
+        availability: student.availability,
+        start_timeline: student.start_timeline,
+        class_modes: student.class_modes,
+        tutor_gender_preference: student.tutor_gender_preference,
+        hourly_charges: student.hourly_charges,
+        profile_photo: student.profile_photo,
+        languages: student.languages,
+        school_name: student.school_name,
+        sms_alerts: student.sms_alerts,
+        created_at: student.created_at, // enquiry creation time
+        updated_at: student.updated_at, // last update
+        enquiry_count: enquiryCountMap[key],             // ✅ total enquiries
+        verified_enquiry_count: verifiedCountMap[key] || 0, // ✅ verified enquiries
+        user: student.User
+          ? {
+              id: student.User.id,
+              name: student.User.name,
+              email: student.User.email,
+              mobile_number: student.User.mobile_number,
+              status: student.User.is_active ? "verified" : "pending",
+            }
+          : {
+              status: "not registered",
+              email: student.email || null,
+              mobile_number: student.mobile_number || null,
+            },
+        location: student.Location
+          ? {
+              country: student.Location.country,
+              state: student.Location.state,
+              city: student.Location.city,
+              pincode: student.Location.pincode,
+            }
+          : null,
+      };
+    });
+
+    return res.status(HttpStatus.OK).json(formatted);
+  } catch (err) {
+    console.error("Get Student Enquiries Error:", err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "Failed to fetch student enquiries",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
+    });
   }
 };

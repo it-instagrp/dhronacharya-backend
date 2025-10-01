@@ -61,7 +61,7 @@ export const getStudents = async (req, res) => {
       whereConditions.name = { [Op.iLike]: `%${name}%` };
     }
 
-    // ✅ Location (city, state, country)
+    //  Location (city, state, country)
     const locationFilter = location
       ? {
           [Op.or]: [
@@ -75,7 +75,9 @@ export const getStudents = async (req, res) => {
     const students = await Student.findAll({
       where: whereConditions,
       include: [
-        { model: User, attributes: ['id', 'email', 'mobile_number', 'is_active'] },
+        { model: User,
+          attributes: ['id', 'email', 'mobile_number', 'is_active'],
+          where: { is_active: true },},
         { model: Location, where: locationFilter, required: !!location },
       ],
       order: [['created_at', 'DESC']],

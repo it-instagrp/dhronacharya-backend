@@ -8,6 +8,7 @@ import { authenticate } from './middlewares/auth.middleware.js';
 import routes from './routes/index.js';
 import './scheduler.js';
 
+import sitemapRoutes from "./routes/sitemap.routes.js";
 
 import {
   appErrorHandler,
@@ -44,7 +45,7 @@ app.use(
     },
   })
 );
-
+app.use("/", sitemapRoutes);
 app.use(authenticate);
 app.use(`/api`, routes());
 

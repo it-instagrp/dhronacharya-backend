@@ -9,7 +9,7 @@ import enquiryRoutes from './enquiry.route.js';
 import paymentRoutes from './payment.route.js';
 import contactRoutes from './contact.route.js';
 import classRoutes from './class.route.js';
-import userSubscriptionRoutes from './subscription.route.js';    // ✅ renamed
+import userSubscriptionRoutes from './subscription.route.js';    // renamed
 import messageRoutes from './message.routes.js';
 import tutorRoutes from './tutor.routes.js';
 import adminRoutes from './admin.routes.js';
@@ -18,7 +18,7 @@ import billingRoutes from './billing.routes.js';
 import bookmarkRoutes from './bookmark.routes.js';
 import recommendationRoutes from './recommendation.routes.js';
 import conversationRoutes from './conversation.routes.js';
-import adminSubscriptionRoutes from './admin.subscription.js';   // ✅ renamed
+import adminSubscriptionRoutes from './admin.subscription.js';   // renamed
 import referralRoutes from './referral.routes.js';
 import couponRoutes from './coupon.route.js';
 import analyticsRoutes from './analytics.routes.js';
@@ -27,7 +27,7 @@ import invoiceRoutes from './invoice.route.js';
 import groupRoutes from './group.routes.js';
 import reviewRoutes from './review.routes.js';
 import subjectRoutes from './subject.routes.js';
-
+import publicRoutes from "./public.routes.js";
 
 
 const routes = () => {
@@ -40,7 +40,7 @@ const routes = () => {
   router.use('/profile', profileRoutes);
   router.use('/enquiries', enquiryRoutes);
   router.use('/payments', paymentRoutes);
-  router.use('/subscriptions', userSubscriptionRoutes);   // ✅ correct
+  router.use('/subscriptions', userSubscriptionRoutes);   // correct
   router.use('/contacts', contactRoutes);
   router.use('/classes', classRoutes);
   router.use('/admin', adminRoutes);
@@ -51,7 +51,7 @@ const routes = () => {
   router.use('/bookmarks', bookmarkRoutes);
   router.use('/recommendations', recommendationRoutes);
   router.use('/conversations', conversationRoutes);
-  router.use('/admin/subscriptions', adminSubscriptionRoutes);  // ✅ correct
+  router.use('/admin/subscriptions', adminSubscriptionRoutes);  //correct
   router.use('/referrals', referralRoutes);
   router.use('/coupons', couponRoutes);
   router.use('/analytics', analyticsRoutes);
@@ -62,6 +62,7 @@ const routes = () => {
 router.use('/reviews', reviewRoutes);
 
 router.use('/subjects', subjectRoutes);
+router.use("/public", publicRoutes);
 
 
   return router;

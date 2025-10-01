@@ -10,7 +10,6 @@ import { templates } from '../templates/index.js';
 import { getPlaceDetailsFromGoogle, getLocationFromPincode } from "../utils/googlePlacesService.js";
 
 
-
 const { User, Admin, Tutor, Student, Location } = db;
 import sequelize from '../config/database.js';
 
@@ -24,12 +23,15 @@ const generateToken = (user) => {
   );
 };
 
+
 // Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+
 // Signup + Send OTP
+
 
 // ✅ Signup Controller
 export const signup = async (req, res) => {
@@ -59,14 +61,17 @@ export const signup = async (req, res) => {
     hourly_charges
   } = req.body;
 
+
   try {
     const now = new Date();
+
 
     const existingUser = await User.findOne({
       where: {
         [sequelize.Sequelize.Op.or]: [{ email }, { mobile_number }]
       }
     });
+
 
     if (existingUser) {
       // ✅ Already verified
@@ -75,6 +80,7 @@ export const signup = async (req, res) => {
           message: "Email or mobile number already registered"
         });
       }
+
 
       // ✅ Stale account (>30min) → delete & allow fresh signup
       const createdAt = new Date(existingUser.created_at);
@@ -85,11 +91,13 @@ export const signup = async (req, res) => {
         const otp = generateOTP();
         const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
+
         await existingUser.update({
           otp_secret: otpHash,
           otp_expires_at: new Date(Date.now() + 10 * 60 * 1000),
           last_otp_sent_at: now
         });
+
 
         if (existingUser.email) {
           await sendEmail(
@@ -105,6 +113,7 @@ export const signup = async (req, res) => {
           );
         }
 
+
         return res.status(HttpStatus.CONFLICT).json({
           message: "Account already exists but not verified. New OTP sent.",
           user_id: existingUser.id
@@ -112,11 +121,14 @@ export const signup = async (req, res) => {
       }
     }
 
+
     // ✅ Fresh signup flow
     const otp = generateOTP();
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
+
     let user;
+
 
     if (role === "student") {
       user = await User.create({
@@ -131,6 +143,7 @@ export const signup = async (req, res) => {
         is_active: false
       });
 
+
       if (temp_student_id) {
         await Student.update(
           { user_id: user.id },
@@ -138,6 +151,7 @@ export const signup = async (req, res) => {
         );
       } else {
         let finalLocationId = location_id || null;
+
 
         if (place_id) {
           const details = await getPlaceDetailsFromGoogle(place_id);
@@ -156,6 +170,7 @@ export const signup = async (req, res) => {
           }
           finalLocationId = location.id;
         }
+
 
         await Student.create({
           user_id: user.id,
@@ -182,7 +197,9 @@ export const signup = async (req, res) => {
         });
       }
 
+
       const hashedPassword = await bcrypt.hash(password, 10);
+
 
       user = await User.create({
         name,
@@ -195,6 +212,7 @@ export const signup = async (req, res) => {
         last_otp_sent_at: now,
         is_active: false
       });
+
 
       if (role === "admin") {
         await Admin.create({ user_id: user.id, name });
@@ -209,6 +227,7 @@ export const signup = async (req, res) => {
       }
     }
 
+
     // ✅ Send OTP to email & SMS
     if (email) {
       await sendEmail(
@@ -220,6 +239,7 @@ export const signup = async (req, res) => {
     if (mobile_number) {
       await sendSMS(mobile_number, templates.otp.signup.sms({ otp }));
     }
+
 
     return res.status(HttpStatus.CREATED).json({
       message: "User created. OTP sent to email and SMS.",
@@ -233,6 +253,8 @@ export const signup = async (req, res) => {
     });
   }
 };
+
+
 
 
 // ✅ Verify Signup OTP
@@ -258,6 +280,7 @@ export const verifyOTP = async (req, res) => {
     hourly_charges
   } = req.body;
 
+
   try {
     const user = await User.findByPk(user_id, {
       include: [
@@ -266,9 +289,11 @@ export const verifyOTP = async (req, res) => {
       ]
     });
 
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
 
     // ✅ Validate OTP
     const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
@@ -280,18 +305,22 @@ export const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
+
     // ✅ Activate user
     user.is_active = true;
     user.otp_secret = null;
     user.otp_expires_at = null;
     await user.save();
 
+
     // ✅ Ensure student record exists after verification
     if (user.role === "student") {
       let student = await Student.findOne({ where: { user_id: user.id } });
 
+
       if (!student) {
         let finalLocationId = location_id || null;
+
 
         if (place_id) {
           const details = await getPlaceDetailsFromGoogle(place_id);
@@ -310,6 +339,7 @@ export const verifyOTP = async (req, res) => {
           }
           finalLocationId = location.id;
         }
+
 
         student = await Student.create({
           user_id: user.id,
@@ -331,12 +361,14 @@ export const verifyOTP = async (req, res) => {
       }
     }
 
+
     // ✅ Generate JWT
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+
 
     return res.status(200).json({
       message: "OTP verified, account activated",
@@ -355,9 +387,11 @@ export const verifyOTP = async (req, res) => {
   }
 };
 
+
 // ✅ Login
 export const login = async (req, res) => {
   const { emailOrMobile, password } = req.body;
+
 
   try {
     const user = await User.findOne({
@@ -374,11 +408,13 @@ export const login = async (req, res) => {
       ]
     });
 
+
     if (!user || !user.is_active) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ 
-        message: 'Invalid credentials or account not verified' 
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        message: 'Invalid credentials or account not verified'
       });
     }
+
 
     if (user.role === "student") {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -386,10 +422,12 @@ export const login = async (req, res) => {
       });
     }
 
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid credentials' });
     }
+
 
     const token = generateToken(user);
     return res.status(HttpStatus.OK).json({ token });
@@ -399,10 +437,12 @@ export const login = async (req, res) => {
   }
 };
 
+
 // 📱 Send OTP for Student Login
 // ✅ sendLoginOTP Resolver Fix
 export const sendLoginOTP = async (req, res) => {
   const { emailOrMobile } = req.body;
+
 
   try {
     const user = await User.findOne({
@@ -414,25 +454,31 @@ export const sendLoginOTP = async (req, res) => {
       }
     });
 
+
     if (!user) {
       return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
     }
 
+
     if (!user.is_active) {
       return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Account not verified' });
     }
+
 
     // ✅ Restrict OTP login to student only
     if (user.role !== "student") {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: 'This role must log in with password' });
     }
 
+
     const otp = generateOTP();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
 
     user.otp_secret = otpHash;
     user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
+
 
     if (user.email) {
       await sendEmail(
@@ -442,12 +488,14 @@ export const sendLoginOTP = async (req, res) => {
       );
     }
 
+
     if (user.mobile_number) {
       await sendSMS(
         user.mobile_number,
         templates.otp.login.sms({ otp })
       );
     }
+
 
     return res.status(HttpStatus.OK).json({ message: 'OTP sent', user_id: user.id });
   } catch (err) {
@@ -456,22 +504,27 @@ export const sendLoginOTP = async (req, res) => {
   }
 };
 
+
 // ✅ Verify Login OTP
 // ✅ verifyLoginOTP Resolver (Updated for student auto-activation)
 export const verifyLoginOTP = async (req, res) => {
   const { user_id, otp } = req.body;
 
+
   try {
     const user = await User.findByPk(user_id);
+
 
     if (!user) {
       return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
     }
 
+
     // ✅ Restrict OTP login only to students
     if (user.role !== "student") {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: 'This role must log in with password' });
     }
+
 
     // Verify OTP
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
@@ -483,15 +536,18 @@ export const verifyLoginOTP = async (req, res) => {
       return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid or expired OTP' });
     }
 
+
     // ✅ If student, mark as active after successful OTP verification
     if (!user.is_active) {
       user.is_active = true;
     }
 
+
     // Clear OTP after successful login
     user.otp_secret = null;
     user.otp_expires_at = null;
     await user.save();
+
 
     // Generate JWT token
     const token = jwt.sign(
@@ -499,6 +555,7 @@ export const verifyLoginOTP = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
 
     return res.status(HttpStatus.OK).json({
       message: 'Login successful',
@@ -518,59 +575,69 @@ export const verifyLoginOTP = async (req, res) => {
 };
 
 
+
+
 // ✅ Forgot Password - Send OTP
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
+
   try {
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(HttpStatus.NOT_FOUND).json({ 
-        message: 'If this email is registered, you will receive a reset link' 
+      return res.status(HttpStatus.NOT_FOUND).json({
+        message: 'If this email is registered, you will receive a reset link'
       });
     }
 
+
     const otp = generateOTP();
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
 
     user.otp_secret = otpHash;
     user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
+
     // Send password reset OTP using templates
     await sendEmail(
-      email, 
-      'Reset Your Dronacharya Password', 
+      email,
+      'Reset Your Dronacharya Password',
       templates.otp.forgotPassword.email({ otp, userName: user.name })
     );
-    
+   
     await sendSMS(
-      user.mobile_number, 
+      user.mobile_number,
       templates.otp.forgotPassword.sms({ otp })
     );
 
-    return res.status(HttpStatus.OK).json({ 
-      message: 'OTP sent to registered email and mobile number' 
+
+    return res.status(HttpStatus.OK).json({
+      message: 'OTP sent to registered email and mobile number'
     });
   } catch (err) {
     logger.error('Forgot Password Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ 
-      message: 'Error sending OTP' 
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: 'Error sending OTP'
     });
   }
 };
+
 
 // ✅ Reset Password (after OTP verification)
 export const resetPassword = async (req, res) => {
   const { email, otp, new_password } = req.body;
 
+
   try {
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(HttpStatus.NOT_FOUND).json({ 
-        message: 'User not found' 
+      return res.status(HttpStatus.NOT_FOUND).json({
+        message: 'User not found'
       });
     }
+
 
     const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
     if (user.otp_secret !== otpHash || new Date() > user.otp_expires_at) {
@@ -579,10 +646,12 @@ export const resetPassword = async (req, res) => {
       });
     }
 
+
     user.password_hash = await bcrypt.hash(new_password, 10);
     user.otp_secret = null;
     user.otp_expires_at = null;
     await user.save();
+
 
     return res.status(HttpStatus.OK).json({
       message: 'Password reset successful'
@@ -595,34 +664,40 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+
 // 🔒 Change Password (Authenticated)
 export const changePassword = async (req, res) => {
   const { old_password, new_password } = req.body;
   const userId = req.user.id;
 
+
   try {
     const user = await User.findByPk(userId);
     const isMatch = await bcrypt.compare(old_password, user.password_hash);
 
+
     if (!isMatch) {
-      return res.status(HttpStatus.BAD_REQUEST).json({ 
-        message: 'Current password is incorrect' 
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        message: 'Current password is incorrect'
       });
     }
+
 
     user.password_hash = await bcrypt.hash(new_password, 10);
     await user.save();
 
-    return res.status(HttpStatus.OK).json({ 
-      message: 'Password changed successfully' 
+
+    return res.status(HttpStatus.OK).json({
+      message: 'Password changed successfully'
     });
   } catch (err) {
     logger.error('Change Password Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ 
-      message: 'Error changing password' 
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: 'Error changing password'
     });
   }
 };
+
 
 // ✅ Student Pre-Registration (Reverse Process)
 export const preRegisterStudent = async (req, res) => {
@@ -638,6 +713,7 @@ export const preRegisterStudent = async (req, res) => {
     school_name,
     sms_alerts,
 
+
     // 🆕 new fields
     board,
     availability,
@@ -646,6 +722,7 @@ export const preRegisterStudent = async (req, res) => {
     hourly_charges
   } = req.body;
 
+
   try {
     if (!name || !studentClass || !subjects) {
       return res.status(HttpStatus.BAD_REQUEST).json({
@@ -653,14 +730,18 @@ export const preRegisterStudent = async (req, res) => {
       });
     }
 
+
     let finalLocationId = location_id || null;
+
 
     // ✅ If place_id provided, fetch details & create/find Location
     if (place_id) {
       let location = await Location.findOne({ where: { place_id } });
 
+
       if (!location) {
         const details = await getPlaceDetailsFromGoogle(place_id);
+
 
         location = await Location.create({
           place_id,
@@ -673,8 +754,10 @@ export const preRegisterStudent = async (req, res) => {
         });
       }
 
+
       finalLocationId = location.id;
     }
+
 
     const student = await Student.create({
       name,
@@ -688,6 +771,7 @@ export const preRegisterStudent = async (req, res) => {
       sms_alerts: sms_alerts ?? false,
       user_id: null,
 
+
       // 🆕 new fields
       board: board || null,
       availability: availability || null,
@@ -695,6 +779,7 @@ export const preRegisterStudent = async (req, res) => {
       tutor_gender_preference: tutor_gender_preference || null,
       hourly_charges: hourly_charges || null
     });
+
 
     return res.status(HttpStatus.CREATED).json({
       message: "Student details saved. Please continue with account creation.",
@@ -710,8 +795,153 @@ export const preRegisterStudent = async (req, res) => {
 };
 
 
+//  Resend OTP (for signup or login)
+export const resendOTP = async (req, res) => {
+  const { user_id } = req.body;
 
 
+  try {
+    const user = await User.findByPk(user_id);
 
+
+    if (!user) {
+      return res.status(HttpStatus.NOT_FOUND).json({ message: "User not found" });
+    }
+
+
+    if (user.is_active && !user.otp_secret) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        message: "Account already verified. Please login."
+      });
+    }
+
+
+    // Prevent spamming: allow resend only if at least 60s have passed since last send
+    const now = new Date();
+    if (user.last_otp_sent_at && now - user.last_otp_sent_at < 60 * 1000) {
+      return res.status(HttpStatus.TOO_MANY_REQUESTS).json({
+        message: "Please wait before requesting a new OTP"
+      });
+    }
+
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+
+    user.otp_secret = otpHash;
+    user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000);
+    user.last_otp_sent_at = now;
+    await user.save();
+
+
+    // Send via Email
+    if (user.email) {
+      await sendEmail(
+        user.email,
+        "Your OTP Code - Dronacharya",
+        templates.otp.signup.email({ otp, userName: user.name })
+      );
+    }
+
+
+    // Send via SMS
+    if (user.mobile_number) {
+      await sendSMS(
+        user.mobile_number,
+        templates.otp.signup.sms({ otp })
+      );
+    }
+
+
+    return res.status(HttpStatus.OK).json({
+      message: "New OTP sent successfully",
+      user_id: user.id
+    });
+  } catch (err) {
+    logger.error("Resend OTP Error:", err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "Failed to resend OTP"
+    });
+  }
+};
+
+
+// Resend Login OTP for Students
+export const resendLoginOTP = async (req, res) => {
+  const { user_id } = req.body;
+
+
+  try {
+    const user = await User.findByPk(user_id);
+
+
+    if (!user) {
+      return res.status(HttpStatus.NOT_FOUND).json({ message: "User not found" });
+    }
+
+
+    // Restrict only to students
+    if (user.role !== "student") {
+      return res.status(HttpStatus.BAD_REQUEST).json({ message: "Only students can login via OTP" });
+    }
+
+
+    if (!user.is_active) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({ message: "Account not verified" });
+    }
+
+
+    // Prevent spamming (min 60s gap)
+    const now = new Date();
+    if (user.last_otp_sent_at && now - user.last_otp_sent_at < 60 * 1000) {
+      return res.status(HttpStatus.TOO_MANY_REQUESTS).json({
+        message: "Please wait before requesting a new OTP"
+      });
+    }
+
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+
+    user.otp_secret = otpHash;
+    user.otp_expires_at = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
+    user.last_otp_sent_at = now;
+    await user.save();
+
+
+    // Send via Email
+    if (user.email) {
+      await sendEmail(
+        user.email,
+        "Your Dronacharya Login OTP",
+        templates.otp.login.email({ otp, userName: user.name })
+      );
+    }
+
+
+    // Send via SMS
+    if (user.mobile_number) {
+      await sendSMS(
+        user.mobile_number,
+        templates.otp.login.sms({ otp })
+      );
+    }
+
+
+    return res.status(HttpStatus.OK).json({
+      message: "New login OTP sent successfully",
+      user_id: user.id
+    });
+  } catch (err) {
+    logger.error("Resend Login OTP Error:", err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "Failed to resend login OTP"
+    });
+  }
+};
 
 

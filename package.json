@@ -17,6 +17,7 @@
     "axios": "^1.9.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "express": "^4.17.1",
@@ -25,6 +26,7 @@
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^8.5.1",
     "mailgun-js": "^0.22.0",
+    "messagebird": "^4.0.1",
     "mongoose": "^5.10.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
@@ -36,9 +38,11 @@
     "rate-limiter-flexible": "^7.2.0",
     "razorpay": "^2.9.6",
     "sequelize": "^6.3.5",
+    "sitemap": "^8.0.0",
     "twilio": "^5.7.1",
     "winston": "^3.3.3",
-    "winston-daily-rotate-file": "^4.5.0"
+    "winston-daily-rotate-file": "^4.5.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/cli": "^7.10.5",

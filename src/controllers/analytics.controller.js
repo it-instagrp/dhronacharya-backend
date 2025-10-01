@@ -18,9 +18,21 @@ const getDateRangeFilter = (start, end, column = 'created_at') => {
 export const getAnalyticsSummary = async (req, res) => {
   try {
     const subscriptions = await UserSubscription.count({ where: { is_active: true } });
-    const revenue = await Payment.sum('amount', { where: { status: 'paid' } });
+
+    // Separate base revenue (without GST) and tax revenue
+    const baseRevenue = await Payment.sum('base_amount', { where: { status: 'paid' } });
+    const taxCollected = await Payment.sum('tax_amount', { where: { status: 'paid' } });
+    const grossRevenue = await Payment.sum('amount', { where: { status: 'paid' } });
+
     const referrals = await ReferralCode.count({ where: { status: 'converted' } });
-    res.json({ subscriptions, revenue, referrals });
+
+    res.json({ 
+      subscriptions, 
+      baseRevenue: baseRevenue || 0,
+      taxCollected: taxCollected || 0,
+      grossRevenue: grossRevenue || 0,
+      referrals 
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching analytics summary', error: err.message });
   }

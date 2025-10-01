@@ -2,25 +2,30 @@ import db from '../models/index.js';
 import { triggerNotification } from '../utils/triggerNotification.js';
 import { enquiryTemplates } from '../templates/enquiry.template.js';
 import { Op } from 'sequelize';
-const { Enquiry, User, Tutor, Student, UserSubscription } = db;
+const { Enquiry, User, Tutor, Student, UserSubscription ,Location} = db;
+
 
 // 📌 Create a New Enquiry
 export const createEnquiry = async (req, res) => {
   const { receiver_id, subject, class: className, description } = req.body;
   const sender_id = req.user.id;
 
+
   try {
     const receiver = await User.findByPk(receiver_id, {
       include: [{ model: Tutor }, { model: Student }],
     });
 
+
     const sender = await User.findByPk(sender_id, {
       include: [{ model: Tutor }, { model: Student }],
     });
 
+
     if (!receiver) {
       return res.status(404).json({ message: 'Receiver not found' });
     }
+
 
     // ✅ Tutor validation
     if (receiver.role === 'tutor') {
@@ -28,17 +33,21 @@ export const createEnquiry = async (req, res) => {
         where: { user_id: receiver_id, is_active: true },
       });
 
+
       if (!tutorSub) {
         return res.status(403).json({ message: 'Tutor is not subscribed. Cannot send enquiry.' });
       }
+
 
       if (receiver.Tutor?.profile_status !== 'approved') {
         return res.status(403).json({ message: 'Tutor profile is not approved yet.' });
       }
     }
 
+
     const sender_location = sender?.Student?.location || sender?.Tutor?.location || null;
     const receiver_location = receiver?.Student?.location || receiver?.Tutor?.location || null;
+
 
     const enquiry = await Enquiry.create({
       sender_id,
@@ -50,12 +59,15 @@ export const createEnquiry = async (req, res) => {
       receiver_location,
     });
 
+
     const senderName = sender.Student?.name || sender.Tutor?.name || sender.email || sender.mobile_number;
     const mode = sender.Student?.mode || 'Not specified';
+
 
     // 📤 Email
     if (receiver.email) {
       let emailBody = '';
+
 
       if (receiver.role === 'tutor') {
         emailBody = enquiryTemplates.new_enquiry_email.tutor({
@@ -71,6 +83,7 @@ export const createEnquiry = async (req, res) => {
         });
       }
 
+
       await triggerNotification({
         user_id: receiver.id,
         type: 'email',
@@ -85,12 +98,13 @@ export const createEnquiry = async (req, res) => {
       });
     }
 
-    // 📲 WhatsApp
+
+    // WhatsApp
     if (receiver.mobile_number) {
-      const whatsappBody = enquiryTemplates.new_enquiry_whatsapp({ 
-        link: `https://dronacharya.in/${receiver.role}/enquiries` 
+      const whatsappBody = enquiryTemplates.new_enquiry_whatsapp({
+        link: `https://dronacharya.in/${receiver.role}/enquiries`
       });
-      
+     
       await triggerNotification({
         user_id: receiver.id,
         type: 'whatsapp',
@@ -102,12 +116,14 @@ export const createEnquiry = async (req, res) => {
       });
     }
 
+
     // 📱 SMS
     if (receiver.mobile_number) {
       const smsBody = enquiryTemplates.new_enquiry_sms({
         name: senderName,
         subject,
       });
+
 
       await triggerNotification({
         user_id: receiver.id,
@@ -121,6 +137,7 @@ export const createEnquiry = async (req, res) => {
       });
     }
 
+
     return res.status(201).json({
       message: 'Enquiry sent and notifications triggered',
       enquiry,
@@ -131,11 +148,13 @@ export const createEnquiry = async (req, res) => {
   }
 };
 
+
 // 📌 Get User/Admin Enquiries (protected)
 export const getEnquiries = async (req, res) => {
   try {
     const currentUser = req.user;
     const isAdmin = currentUser.role === 'admin';
+
 
     const whereClause = isAdmin
       ? {}
@@ -145,6 +164,7 @@ export const getEnquiries = async (req, res) => {
             { receiver_id: currentUser.id },
           ],
         };
+
 
     const enquiries = await db.Enquiry.findAll({
       where: whereClause,
@@ -203,6 +223,7 @@ export const getEnquiries = async (req, res) => {
       order: [['created_at', 'DESC']],
     });
 
+
     const formattedEnquiries = enquiries.map(enquiry => ({
       id: enquiry.id,
       subject: enquiry.subject,
@@ -225,6 +246,7 @@ export const getEnquiries = async (req, res) => {
       },
     }));
 
+
     res.status(200).json({ enquiries: formattedEnquiries });
   } catch (error) {
     console.error('❌ getEnquiries error:', error);
@@ -232,10 +254,12 @@ export const getEnquiries = async (req, res) => {
   }
 };
 
+
 // 📌 Update Enquiry Status (Accept / Reject)
 export const updateEnquiryStatus = async (req, res) => {
   const { id } = req.params;
   const { status, response_message } = req.body;
+
 
   try {
     const enquiry = await Enquiry.findByPk(id);
@@ -243,17 +267,21 @@ export const updateEnquiryStatus = async (req, res) => {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
 
+
     if (!['pending', 'accepted', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status value' });
     }
 
+
     enquiry.status = status;
     enquiry.response_message = response_message || null;
+
 
     const [sender, receiver] = await Promise.all([
       User.findByPk(enquiry.sender_id, { include: [Tutor, Student] }),
       User.findByPk(enquiry.receiver_id, { include: [Tutor, Student] }),
     ]);
+
 
     if (!enquiry.sender_location) {
       enquiry.sender_location = sender?.Student?.location || sender?.Tutor?.location || null;
@@ -262,7 +290,9 @@ export const updateEnquiryStatus = async (req, res) => {
       enquiry.receiver_location = receiver?.Student?.location || receiver?.Tutor?.location || null;
     }
 
+
     await enquiry.save();
+
 
     if (sender?.email) {
       await triggerNotification({
@@ -278,14 +308,16 @@ export const updateEnquiryStatus = async (req, res) => {
       });
     }
 
+
     return res.status(200).json({ message: 'Enquiry updated successfully', enquiry });
   } catch (err) {
-    console.error('❌ updateEnquiryStatus error:', err);
+    console.error('updateEnquiryStatus error:', err);
     return res.status(500).json({ message: 'Failed to update enquiry', error: err.message });
   }
 };
 
-// ✅ NEW: Public Get Recent Enquiries
+
+// NEW: Public Get Recent Enquiries
 export const getRecentEnquiries = async (req, res) => {
   try {
     const enquiries = await Enquiry.findAll({
@@ -297,8 +329,18 @@ export const getRecentEnquiries = async (req, res) => {
           as: 'Sender',
           attributes: ['id', 'role'],
           include: [
-            { model: Student, as: 'Student', attributes: ['name', 'class', 'subjects', 'profile_photo'] },
-            { model: Tutor, as: 'Tutor', attributes: ['name', 'subjects', 'profile_photo'] }
+            { 
+              model: Student, 
+              as: 'Student', 
+              attributes: ['name', 'class', 'subjects', 'profile_photo', 'class_modes', 'hourly_charges'],
+              include: [{ model: Location, attributes: ['city', 'state', 'country'] }]
+            },
+            { 
+              model: Tutor, 
+              as: 'Tutor', 
+              attributes: ['name', 'subjects', 'profile_photo', 'teaching_modes', 'pricing_per_hour'],
+              include: [{ model: Location, attributes: ['city', 'state', 'country'] }]
+            }
           ]
         },
         {
@@ -306,8 +348,18 @@ export const getRecentEnquiries = async (req, res) => {
           as: 'Receiver',
           attributes: ['id', 'role'],
           include: [
-            { model: Student, as: 'Student', attributes: ['name', 'class', 'subjects', 'profile_photo'] },
-            { model: Tutor, as: 'Tutor', attributes: ['name', 'subjects', 'profile_photo'] }
+            { 
+              model: Student, 
+              as: 'Student', 
+              attributes: ['name', 'class', 'subjects', 'profile_photo', 'class_modes', 'hourly_charges'],
+              include: [{ model: Location, attributes: ['city', 'state', 'country'] }]
+            },
+            { 
+              model: Tutor, 
+              as: 'Tutor', 
+              attributes: ['name', 'subjects', 'profile_photo', 'teaching_modes', 'pricing_per_hour'],
+              include: [{ model: Location, attributes: ['city', 'state', 'country'] }]
+            }
           ]
         }
       ]
@@ -325,7 +377,10 @@ export const getRecentEnquiries = async (req, res) => {
         name: e.Sender.Tutor?.name || e.Sender.Student?.name,
         class: e.Sender.Student?.class || null,
         subjects: e.Sender.Student?.subjects || e.Sender.Tutor?.subjects || [],
-        profile_photo: e.Sender.Student?.profile_photo || e.Sender.Tutor?.profile_photo || null
+        profile_photo: e.Sender.Student?.profile_photo || e.Sender.Tutor?.profile_photo || null,
+        location: e.Sender.Student?.Location || e.Sender.Tutor?.Location || null,
+        modes: e.Sender.Student?.class_modes || e.Sender.Tutor?.teaching_modes || [],
+        charges: e.Sender.Student?.hourly_charges || e.Sender.Tutor?.pricing_per_hour || null
       },
       receiver: {
         id: e.Receiver.id,
@@ -333,7 +388,10 @@ export const getRecentEnquiries = async (req, res) => {
         name: e.Receiver.Tutor?.name || e.Receiver.Student?.name,
         class: e.Receiver.Student?.class || null,
         subjects: e.Receiver.Student?.subjects || e.Receiver.Tutor?.subjects || [],
-        profile_photo: e.Receiver.Student?.profile_photo || e.Receiver.Tutor?.profile_photo || null
+        profile_photo: e.Receiver.Student?.profile_photo || e.Receiver.Tutor?.profile_photo || null,
+        location: e.Receiver.Student?.Location || e.Receiver.Tutor?.Location || null,
+        modes: e.Receiver.Student?.class_modes || e.Receiver.Tutor?.teaching_modes || [],
+        charges: e.Receiver.Student?.hourly_charges || e.Receiver.Tutor?.pricing_per_hour || null
       }
     }));
 

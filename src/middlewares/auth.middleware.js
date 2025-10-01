@@ -17,6 +17,7 @@ export const authenticate = async (req, res, next) => {
     const publicRoutes = [
       { method: "GET", path: "/api/" },
       { method: "GET", path: "/api/enquiries/recent" },
+      { method: "GET", path: "/public/students" },
       { method: "POST", path: "/api/auth/signup" },
       { method: "POST", path: "/api/auth/student/pre-register" },
       { method: "POST", path: "/api/auth/login" },
@@ -25,6 +26,8 @@ export const authenticate = async (req, res, next) => {
       { method: "POST", path: "/api/auth/reset-password" },
       { method: "POST", path: "/api/auth/send-login-otp" },
       { method: "POST", path: "/api/auth/verify-login-otp" },
+      { method: "POST", path: "/api/auth/login/send-otp" },
+      { method: "POST", path: "/api/auth/resend-otp" },
       { method: "POST", path: "/api/payments/create-order" },
       { method: "POST", path: "/api/payments/verify-payment" },
       { method: "GET", path: "/api/subjects" },

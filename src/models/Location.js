@@ -10,8 +10,8 @@ const Location = sequelize.define('Location', {
   },
    place_id: {
       type: DataTypes.STRING,
-      allowNull: true,    // ✅ Now optional
-      unique: false,      // ✅ Avoid uniqueness issue when using pincodes
+      allowNull: true,    // Now optional
+      unique: false,      // Avoid uniqueness issue when using pincodes
     },
   country: {
     type: DataTypes.STRING,
