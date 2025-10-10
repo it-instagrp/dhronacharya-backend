@@ -10,7 +10,7 @@ import { couponTemplates } from '../templates/couponTemplates.js';
 const { Coupon, User, SubscriptionPlan } = db;
 
 /**
- * ✅ Admin: Create Coupon
+ * Admin: Create Coupon
  */
 export const createCoupon = async (req, res) => {
   try {
@@ -21,9 +21,7 @@ export const createCoupon = async (req, res) => {
     } = req.body;
 
     const existing = await Coupon.findOne({ where: { code } });
-    if (existing) {
-      return res.status(400).json({ message: 'Coupon code already exists.' });
-    }
+    if (existing) return res.status(400).json({ message: 'Coupon code already exists.' });
 
     const coupon = await Coupon.create({
       code,
@@ -40,52 +38,43 @@ export const createCoupon = async (req, res) => {
     return res.status(201).json({ message: 'Coupon created successfully.', coupon });
   } catch (error) {
     console.error('Error creating coupon:', error);
-    return res.status(500).json({ message: 'Error creating coupon' });
+    return res.status(500).json({ message: 'Error creating coupon', error: error.message });
   }
 };
 
 /**
- * ✅ Admin: Get All Coupons
+ * Admin: Get All Coupons
  */
 export const getAllCoupons = async (req, res) => {
   try {
-    const coupons = await Coupon.findAll({
-      order: [['createdAt', 'DESC']]
-    });
+    const coupons = await Coupon.findAll({ order: [['createdAt', 'DESC']] });
     return res.json({ coupons });
   } catch (error) {
-    return res.status(500).json({ message: 'Error fetching coupons' });
+    return res.status(500).json({ message: 'Error fetching coupons', error: error.message });
   }
 };
 
 /**
- * ✅ User: Apply Coupon with Plan Matching and Notification
+ * User: Apply Coupon (with Plan Validation & Notifications)
  */
-
-
 export const applyCoupon = async (req, res) => {
   const { code, plan_name } = req.body;
   const userId = req.user?.id;
 
   try {
-    if (!code || !plan_name) {
-      return res.status(400).json({ message: 'Coupon code and plan name are required.' });
-    }
+    if (!code || !plan_name) return res.status(400).json({ message: 'Coupon code and plan name are required.' });
 
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: 'User not found.' });
 
-    // ✅ Find plan by name and user type (role)
     const plan = await SubscriptionPlan.findOne({
       where: {
         plan_name,
-        user_type: user.role  // 'student' or 'tutor'
+        user_type: user.role
       }
     });
 
-    if (!plan) {
-      return res.status(404).json({ message: `No ${user.role} plan found by that name.` });
-    }
+    if (!plan) return res.status(404).json({ message: `No ${user.role} plan found by that name.` });
 
     const today = new Date();
 
@@ -107,16 +96,13 @@ export const applyCoupon = async (req, res) => {
       }
     });
 
-    if (!coupon) {
-      return res.status(404).json({ message: 'Invalid or expired coupon for this plan.' });
-    }
+    if (!coupon) return res.status(404).json({ message: 'Invalid or expired coupon for this plan.' });
 
-    // ✅ Calculate discounted amount
+    // ✅ Calculate discount
     const originalAmount = plan.price;
     const discountAmount = coupon.discount_type === 'percentage'
       ? Math.round((coupon.discount_value / 100) * originalAmount)
       : coupon.discount_value;
-
     const finalAmount = Math.max(originalAmount - discountAmount, 0);
     const discountDisplay = coupon.discount_type === 'percentage'
       ? `${coupon.discount_value}%`
@@ -149,12 +135,13 @@ export const applyCoupon = async (req, res) => {
     ]);
 
     return res.status(200).json({
-      message: 'Coupon is valid and notifications sent',
+      message: 'Coupon applied successfully',
       coupon: {
         code: coupon.code,
         discount_type: coupon.discount_type,
         discount_value: coupon.discount_value,
         original_amount: originalAmount,
+        discount_amount: discountAmount,
         final_amount: finalAmount
       }
     });
@@ -165,17 +152,14 @@ export const applyCoupon = async (req, res) => {
   }
 };
 
-
 /**
- * ✅ Admin: Toggle Active/Inactive
+ * Admin: Toggle Active/Inactive
  */
 export const toggleCouponStatus = async (req, res) => {
   const { id } = req.params;
   try {
     const coupon = await Coupon.findByPk(id);
-    if (!coupon) {
-      return res.status(404).json({ message: 'Coupon not found' });
-    }
+    if (!coupon) return res.status(404).json({ message: 'Coupon not found' });
 
     coupon.is_active = !coupon.is_active;
     await coupon.save();
@@ -185,29 +169,27 @@ export const toggleCouponStatus = async (req, res) => {
       coupon
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Error updating coupon status' });
+    return res.status(500).json({ message: 'Error updating coupon status', error: error.message });
   }
 };
 
 /**
- * ✅ Admin: Delete Coupon
+ * Admin: Delete Coupon
  */
 export const deleteCoupon = async (req, res) => {
   const { id } = req.params;
   try {
     const deleted = await Coupon.destroy({ where: { id } });
-    if (!deleted) {
-      return res.status(404).json({ message: 'Coupon not found' });
-    }
+    if (!deleted) return res.status(404).json({ message: 'Coupon not found' });
 
     return res.json({ message: 'Coupon deleted successfully' });
   } catch (error) {
-    return res.status(500).json({ message: 'Error deleting coupon' });
+    return res.status(500).json({ message: 'Error deleting coupon', error: error.message });
   }
 };
 
 /**
- * ✅ Public: Get All Available Coupons (Active + Valid)
+ * Public: Get All Available Coupons (Active + Valid)
  */
 export const getAvailableCoupons = async (req, res) => {
   try {
@@ -229,5 +211,41 @@ export const getAvailableCoupons = async (req, res) => {
     return res.status(200).json({ coupons });
   } catch (error) {
     return res.status(500).json({ message: 'Error fetching coupons', error: error.message });
+  }
+};
+
+/**
+ * Public: Get All Coupons including already applied ones for a user & plan
+ */
+export const getUserApplicableCoupons = async (req, res) => {
+  const { plan_name } = req.query;
+  const userId = req.user?.id;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
+    const today = new Date();
+
+    const coupons = await Coupon.findAll({
+      where: {
+        is_active: true,
+        valid_from: { [Op.lte]: today },
+        valid_until: { [Op.gte]: today },
+        [Op.or]: [
+          { applicable_plan: 'all' },
+          { applicable_plan: plan_name }
+        ],
+        [Op.or]: [
+          { usage_limit: null },
+          { usage_limit: { [Op.gt]: col('used_count') } }
+        ]
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json({ coupons });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error fetching user coupons', error: error.message });
   }
 };

@@ -28,21 +28,36 @@ export const getBookmarks = async (req, res) => {
   try {
     const bookmarks = await Bookmark.findAll({
       where: { user_id: userId },
-      include: [{
-        model: User,
-        as: 'BookmarkedUser',
-        include: [
-          {
-            model: Tutor,
-            include: [{ model: db.Location }] // ✅ Include location here
-          },
-          { model: Student }
-        ]
-      }]
+      include: [
+        {
+          model: User,
+          as: 'BookmarkedUser',
+          attributes: ['id', 'name', 'email', 'mobile_number', 'role'], // optional: limit fields
+          include: [
+            {
+              model: Tutor,
+              include: [
+                {
+                  model: db.Location,
+                  attributes: ['id', 'country', 'state', 'city', 'pincode'] // ✅ Return actual location
+                }
+              ]
+            },
+            {
+              model: Student,
+              include: [
+                {
+                  model: db.Location,
+                  attributes: ['id', 'country', 'state', 'city', 'pincode'] // ✅ Return actual location for students too
+                }
+              ]
+            }
+          ]
+        }
+      ]
     });
 
     res.status(200).json({ bookmarks });
-
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch bookmarks', error: err.message });
   }

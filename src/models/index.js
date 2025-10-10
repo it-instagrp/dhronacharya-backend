@@ -22,6 +22,8 @@ import Review from './review.js';
 import ReviewComment from './reviewComment.js';
 import Class from './class.js';
 import Subject from './subject.js';
+import ContactLog from './ContactLog.js';
+
 
 const db = {};
 db.sequelize = sequelize;
@@ -33,6 +35,8 @@ db.Tutor = Tutor;
 db.Student = Student;
 db.Class = Class;
 db.Subject = Subject;
+db.ContactLog = ContactLog;
+
 
 // Role associations
 db.User.hasOne(db.Admin, { foreignKey: 'user_id', onDelete: 'CASCADE' });

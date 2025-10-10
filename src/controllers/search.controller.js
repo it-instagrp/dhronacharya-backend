@@ -4,7 +4,7 @@ import { Op, fn, col } from 'sequelize';
 const { Student, Tutor, User, Location,Review, ReviewComment } = db;
 
 /**
- * 🧑‍🎓 Fetch Students with Filters
+ * Fetch Students with Filters
  */
 export const getStudents = async (req, res) => {
   try {
@@ -21,47 +21,47 @@ export const getStudents = async (req, res) => {
 
     const whereConditions = {};
 
-    // ✅ Subjects
+    // Subjects
     if (subjects) {
       if (!Array.isArray(subjects)) subjects = [subjects];
       whereConditions.subjects = { [Op.overlap]: subjects };
     }
 
-    // ✅ Classes
+    // Classes
     if (classes) {
       if (!Array.isArray(classes)) classes = [classes];
       whereConditions.class = { [Op.overlap]: classes };
     }
 
-    // ✅ Board
+    // Board
     if (board) {
       if (!Array.isArray(board)) board = [board];
       whereConditions.board = { [Op.overlap]: board };
     }
 
-    // ✅ Availability
+    // Availability
     if (availability) {
       if (!Array.isArray(availability)) availability = [availability];
       whereConditions.availability = { [Op.overlap]: availability };
     }
 
-    // ✅ Languages
+    // Languages
     if (languages) {
       if (!Array.isArray(languages)) languages = [languages];
       whereConditions.languages = { [Op.overlap]: languages };
     }
 
-    // ✅ Gender Preference
+    // Gender Preference
     if (tutor_gender_preference && tutor_gender_preference !== 'Any') {
       whereConditions.tutor_gender_preference = tutor_gender_preference;
     }
 
-    // ✅ Name Search
+    // Name Search
     if (name) {
       whereConditions.name = { [Op.iLike]: `%${name}%` };
     }
 
-    //  Location (city, state, country)
+    // Location (city, state, country)
     const locationFilter = location
       ? {
           [Op.or]: [
@@ -75,9 +75,11 @@ export const getStudents = async (req, res) => {
     const students = await Student.findAll({
       where: whereConditions,
       include: [
-        { model: User,
+        {
+          model: User,
           attributes: ['id', 'email', 'mobile_number', 'is_active'],
-          where: { is_active: true },},
+          where: { is_active: true }, // Only active students
+        },
         { model: Location, where: locationFilter, required: !!location },
       ],
       order: [['created_at', 'DESC']],
@@ -85,19 +87,17 @@ export const getStudents = async (req, res) => {
 
     return res.status(200).json({ students });
   } catch (err) {
-    console.error('❌ Failed to fetch students:', err);
+    console.error('Failed to fetch students:', err);
     return res
       .status(500)
       .json({ message: 'Failed to fetch students', error: err.message });
   }
 };
 
-/**
- * 🧑‍🏫 Fetch Tutors with Filters
- */
+
 
 /**
- * 🧑‍🏫 Fetch Tutors with Filters + Ratings + Reviews + Comments
+ * Fetch Tutors with Filters + Ratings + Reviews + Comments
  */
 export const getTutors = async (req, res) => {
   try {
@@ -119,65 +119,65 @@ export const getTutors = async (req, res) => {
 
     const whereConditions = { profile_status };
 
-    // ✅ Subjects
+    // Subjects
     if (subjects) {
       if (!Array.isArray(subjects)) subjects = [subjects];
       whereConditions.subjects = { [Op.overlap]: subjects };
     }
 
-    // ✅ Classes
+    // Classes
     if (classes) {
       if (!Array.isArray(classes)) classes = [classes];
       whereConditions.classes = { [Op.overlap]: classes };
     }
 
-    // ✅ Board
+    // Board
     if (board) {
       if (!Array.isArray(board)) board = [board];
       whereConditions.board = { [Op.overlap]: board };
     }
 
-    // ✅ Availability
+    //Availability
     if (availability) {
       if (!Array.isArray(availability)) availability = [availability];
       whereConditions.availability = { [Op.overlap]: availability };
     }
 
-    // ✅ Languages
+    // Languages
     if (languages) {
       if (!Array.isArray(languages)) languages = [languages];
       whereConditions.languages = { [Op.overlap]: languages };
     }
 
-    // ✅ Teaching Modes
+    // Teaching Modes
     if (teaching_modes) {
       if (!Array.isArray(teaching_modes)) teaching_modes = [teaching_modes];
       whereConditions.teaching_modes = { [Op.overlap]: teaching_modes };
     }
 
-    // ✅ Experience (min years)
+    // Experience (min years)
     if (experience) {
       whereConditions.experience = { [Op.gte]: experience };
     }
 
-    // ✅ Pricing
+    // Pricing
     if (budgetMin || budgetMax) {
       whereConditions.pricing_per_hour = {};
       if (budgetMin) whereConditions.pricing_per_hour[Op.gte] = budgetMin;
       if (budgetMax) whereConditions.pricing_per_hour[Op.lte] = budgetMax;
     }
 
-    // ✅ Gender
+    // Gender
     if (gender && gender !== 'Any') {
       whereConditions.gender = gender;
     }
 
-    // ✅ Name search
+    // Name search
     if (name) {
       whereConditions.name = { [Op.iLike]: `%${name}%` };
     }
 
-    // ✅ Location filter
+    // Location filter
     const locationFilter = location
       ? {
           [Op.or]: [
@@ -188,7 +188,7 @@ export const getTutors = async (req, res) => {
         }
       : {};
 
-    // 🔹 Fetch tutors
+    // Fetch tutors
     const tutors = await Tutor.findAll({
       where: whereConditions,
       include: [
@@ -206,7 +206,7 @@ export const getTutors = async (req, res) => {
       order: [['created_at', 'DESC']],
     });
 
-    // 🔹 Add ratings + all published reviews with comments
+    // Add ratings + all published reviews with comments
     const tutorsWithData = await Promise.all(
       tutors.map(async (tutor) => {
         // Ratings summary
@@ -251,7 +251,7 @@ export const getTutors = async (req, res) => {
 
     return res.status(200).json({ tutors: tutorsWithData });
   } catch (err) {
-    console.error('❌ Failed to fetch tutors:', err);
+    console.error('Failed to fetch tutors:', err);
     return res.status(500).json({
       message: 'Failed to fetch tutors',
       error: err.message,

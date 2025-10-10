@@ -26,12 +26,12 @@ export const getAnalyticsSummary = async (req, res) => {
 
     const referrals = await ReferralCode.count({ where: { status: 'converted' } });
 
-    res.json({ 
-      subscriptions, 
+    res.json({
+      subscriptions,
       baseRevenue: baseRevenue || 0,
       taxCollected: taxCollected || 0,
       grossRevenue: grossRevenue || 0,
-      referrals 
+      referrals
     });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching analytics summary', error: err.message });

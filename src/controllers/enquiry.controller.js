@@ -5,69 +5,58 @@ import { Op } from 'sequelize';
 const { Enquiry, User, Tutor, Student, UserSubscription ,Location} = db;
 
 
-// 📌 Create a New Enquiry
+// Create a New Enquiry
 export const createEnquiry = async (req, res) => {
-  const { receiver_id, subject, class: className, description } = req.body;
+  const { receiver_id, subject, class: className, mode } = req.body; // removed description
   const sender_id = req.user.id;
-
 
   try {
     const receiver = await User.findByPk(receiver_id, {
       include: [{ model: Tutor }, { model: Student }],
     });
 
-
     const sender = await User.findByPk(sender_id, {
       include: [{ model: Tutor }, { model: Student }],
     });
-
 
     if (!receiver) {
       return res.status(404).json({ message: 'Receiver not found' });
     }
 
-
-    // ✅ Tutor validation
+    // Tutor validation
     if (receiver.role === 'tutor') {
       const tutorSub = await UserSubscription.findOne({
         where: { user_id: receiver_id, is_active: true },
       });
 
-
       if (!tutorSub) {
         return res.status(403).json({ message: 'Tutor is not subscribed. Cannot send enquiry.' });
       }
-
 
       if (receiver.Tutor?.profile_status !== 'approved') {
         return res.status(403).json({ message: 'Tutor profile is not approved yet.' });
       }
     }
 
-
     const sender_location = sender?.Student?.location || sender?.Tutor?.location || null;
     const receiver_location = receiver?.Student?.location || receiver?.Tutor?.location || null;
 
-
+    // Create enquiry without description, add mode and subject
     const enquiry = await Enquiry.create({
       sender_id,
       receiver_id,
       subject: subject?.trim(),
       class: className?.trim(),
-      description: description?.trim(),
+      mode: mode || 'Not specified',
       sender_location,
       receiver_location,
     });
 
-
     const senderName = sender.Student?.name || sender.Tutor?.name || sender.email || sender.mobile_number;
-    const mode = sender.Student?.mode || 'Not specified';
 
-
-    // 📤 Email
+    // Email
     if (receiver.email) {
       let emailBody = '';
-
 
       if (receiver.role === 'tutor') {
         emailBody = enquiryTemplates.new_enquiry_email.tutor({
@@ -83,7 +72,6 @@ export const createEnquiry = async (req, res) => {
         });
       }
 
-
       await triggerNotification({
         user_id: receiver.id,
         type: 'email',
@@ -98,13 +86,12 @@ export const createEnquiry = async (req, res) => {
       });
     }
 
-
     // WhatsApp
     if (receiver.mobile_number) {
       const whatsappBody = enquiryTemplates.new_enquiry_whatsapp({
         link: `https://dronacharya.in/${receiver.role}/enquiries`
       });
-     
+
       await triggerNotification({
         user_id: receiver.id,
         type: 'whatsapp',
@@ -116,14 +103,12 @@ export const createEnquiry = async (req, res) => {
       });
     }
 
-
-    // 📱 SMS
+    // SMS
     if (receiver.mobile_number) {
       const smsBody = enquiryTemplates.new_enquiry_sms({
         name: senderName,
         subject,
       });
-
 
       await triggerNotification({
         user_id: receiver.id,
@@ -137,19 +122,18 @@ export const createEnquiry = async (req, res) => {
       });
     }
 
-
     return res.status(201).json({
       message: 'Enquiry sent and notifications triggered',
       enquiry,
     });
   } catch (err) {
-    console.error('❌ createEnquiry error:', err);
+    console.error('createEnquiry error:', err);
     return res.status(500).json({ message: 'Failed to send enquiry', error: err.message });
   }
 };
 
 
-// 📌 Get User/Admin Enquiries (protected)
+// Get User/Admin Enquiries (protected)
 export const getEnquiries = async (req, res) => {
   try {
     const currentUser = req.user;
@@ -249,13 +233,13 @@ export const getEnquiries = async (req, res) => {
 
     res.status(200).json({ enquiries: formattedEnquiries });
   } catch (error) {
-    console.error('❌ getEnquiries error:', error);
+    console.error('getEnquiries error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 
-// 📌 Update Enquiry Status (Accept / Reject)
+// Update Enquiry Status (Accept / Reject)
 export const updateEnquiryStatus = async (req, res) => {
   const { id } = req.params;
   const { status, response_message } = req.body;
@@ -400,7 +384,30 @@ export const getRecentEnquiries = async (req, res) => {
       enquiries: formatted
     });
   } catch (err) {
-    console.error('❌ getRecentEnquiries error:', err);
+    console.error('getRecentEnquiries error:', err);
     res.status(500).json({ message: 'Failed to fetch recent enquiries', error: err.message });
+  }
+};
+
+
+export const checkSenderSubscription = async (req, res) => {
+  const senderId = req.user.id;
+
+  try {
+    const subscription = await UserSubscription.findOne({
+      where: { user_id: senderId, is_active: true },
+    });
+
+    if (!subscription) {
+      return res.status(403).json({
+        allowed: false,
+        message: 'You need an active subscription to send enquiries.',
+      });
+    }
+
+    return res.status(200).json({ allowed: true });
+  } catch (err) {
+    console.error('checkSenderSubscription error:', err);
+    return res.status(500).json({ message: 'Failed to check subscription', error: err.message });
   }
 };

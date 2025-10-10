@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 
 const { UserSubscription, SubscriptionPlan, User, Tutor, Student } = db;
 
-// ✅ GET /api/admin/subscriptions?role=tutor|student
+// GET /api/admin/subscriptions?role=tutor|student
 export const getAllSubscriptions = async (req, res) => {
   const { role } = req.query;
   const where = role ? { '$User.role$': role } : {};
@@ -43,7 +43,7 @@ export const getAllSubscriptions = async (req, res) => {
   }
 };
 
-// ✅ GET /api/admin/subscriptions/unsubscribed?role=tutor|student
+// GET /api/admin/subscriptions/unsubscribed?role=tutor|student
 export const getUnsubscribedUsers = async (req, res) => {
   const { role } = req.query;
 
@@ -81,7 +81,7 @@ export const getUnsubscribedUsers = async (req, res) => {
   }
 };
 
-// ✅ POST /api/admin/subscriptions/plans
+// POST /api/admin/subscriptions/plans
 export const createSubscriptionPlan = async (req, res) => {
   const { plan_name, price, duration_days, contact_limit, plan_type, features, user_type } = req.body;
 
@@ -106,7 +106,7 @@ export const createSubscriptionPlan = async (req, res) => {
   }
 };
 
-// ✅ PUT /api/admin/subscriptions/plans/:id
+// PUT /api/admin/subscriptions/plans/:id
 export const updateSubscriptionPlan = async (req, res) => {
   try {
     const { id } = req.params;
@@ -120,7 +120,7 @@ export const updateSubscriptionPlan = async (req, res) => {
   }
 };
 
-// ✅ DELETE /api/admin/subscriptions/plans/:id
+// DELETE /api/admin/subscriptions/plans/:id
 export const deleteSubscriptionPlan = async (req, res) => {
   try {
     const { id } = req.params;
@@ -133,7 +133,7 @@ export const deleteSubscriptionPlan = async (req, res) => {
   }
 };
 
-// ✅ GET /api/admin/subscriptions/plans
+// GET /api/admin/subscriptions/plans
 export const getAllSubscriptionPlans = async (req, res) => {
   try {
     const plans = await SubscriptionPlan.findAll({

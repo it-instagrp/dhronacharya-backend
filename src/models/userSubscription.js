@@ -12,7 +12,12 @@ const UserSubscription = sequelize.define('UserSubscription', {
   payment_id: { type: DataTypes.UUID, allowNull: false },
   start_date: { type: DataTypes.DATE, allowNull: false },
   end_date: { type: DataTypes.DATE, allowNull: false },
-  contacts_remaining: { type: DataTypes.INTEGER },
+  contacts_remaining: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  defaultValue: 0
+},
+
   is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
 }, {
   tableName: 'user_subscriptions',

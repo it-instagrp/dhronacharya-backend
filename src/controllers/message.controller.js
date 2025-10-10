@@ -1,8 +1,6 @@
 import db from '../models/index.js';
 const { Message, Enquiry, User } = db; // enquiry-threaded
-// NOTE: Direct bookmark chat handled in conversation.controller.js
-
-// ✅ Get all messages for a given enquiry (existing functionality)
+// Get all messages for a given enquiry (existing functionality)
 export const getMessagesByEnquiry = async (req, res) => {
   const { id: enquiry_id } = req.params;
 
@@ -24,7 +22,7 @@ export const getMessagesByEnquiry = async (req, res) => {
   }
 };
 
-// ✅ Send a message under an enquiry (existing functionality)
+// Send a message under an enquiry (existing functionality)
 export const sendMessage = async (req, res) => {
   const { id: enquiry_id } = req.params;
   const { content } = req.body;

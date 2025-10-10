@@ -11,6 +11,7 @@ const Payment = sequelize.define('Payment', {
   plan_id: { type: DataTypes.UUID, allowNull: false },
   razorpay_order_id: { type: DataTypes.STRING },
   razorpay_payment_id: { type: DataTypes.STRING },
+
   // 💰 Amount is total (base + GST)
   amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   currency: { type: DataTypes.STRING, defaultValue: 'INR' },
@@ -29,7 +30,18 @@ const Payment = sequelize.define('Payment', {
   base_amount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true, // plan price before tax
-  }
+  },
+
+  // 🆕 Discount & Coupon
+  discount_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0,
+  },
+  coupon_code: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   tableName: 'payments',
   timestamps: true,

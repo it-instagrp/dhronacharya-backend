@@ -14,5 +14,7 @@ router.patch('/:id/status', enquiryController.updateEnquiryStatus);
 // Messages related to enquiries
 router.get('/:id/messages', getMessagesByEnquiry);
 router.post('/:id/messages', sendMessage);
+// routes/enquiry.routes.js
+router.get('/check-sender-subscription', authenticate, enquiryController.checkSenderSubscription);
 
 export default router;

@@ -9,7 +9,7 @@ import { Op, fn, col } from 'sequelize';
 
 const { User, Tutor, Student, Location ,Review,ReviewComment} = db;
 
-// 🔍 GET profile with subscription status
+//  GET profile with subscription status
 export const getProfile = async (req, res) => {
   const { user } = req;
 
@@ -17,7 +17,7 @@ export const getProfile = async (req, res) => {
     let profile;
 
     if (user.role === 'tutor') {
-      // ✅ Tutor profile
+      //  Tutor profile
       profile = await Tutor.findOne({
         where: { user_id: user.id },
         attributes: [
@@ -53,7 +53,7 @@ export const getProfile = async (req, res) => {
       });
 
       if (profile) {
-        // 🔹 Rating summary
+        // Rating summary
         const summary = await Review.findAll({
           where: { tutor_id: profile.user_id, status: { [Op.ne]: 'deleted' } },
           attributes: [
@@ -85,7 +85,7 @@ export const getProfile = async (req, res) => {
         profile.dataValues.reviews = reviews;
       }
     } else if (user.role === 'student') {
-      // ✅ Student profile
+      // Student profile
       profile = await Student.findOne({
         where: { user_id: user.id },
         attributes: [
@@ -114,7 +114,7 @@ export const getProfile = async (req, res) => {
       return res.status(400).json({ message: 'Invalid user role' });
     }
 
-    // ✅ Subscription info
+    // Subscription info
     const subscription = await db.UserSubscription.findOne({
       where: { user_id: user.id, is_active: true },
       include: [{ model: db.SubscriptionPlan, attributes: ['plan_name'] }],
@@ -145,12 +145,12 @@ export const getProfile = async (req, res) => {
       remaining_days: remainingDays,
     });
   } catch (err) {
-    console.error('❌ Profile fetch error:', err);
+    console.error('Profile fetch error:', err);
     return res.status(500).json({ message: 'Failed to fetch profile', error: err.message });
   }
 };
 
-// 🌍 Update Location
+// Update Location
 export const updateLocation = async (req, res) => {
   const { user } = req;
   const { place_id } = req.body;
@@ -174,7 +174,7 @@ export const updateLocation = async (req, res) => {
   }
 };
 
-// ✏ Update Student Profile
+// Update Student Profile
 export const updateStudentProfile = async (req, res) => {
   const {
     name,
@@ -248,7 +248,7 @@ export const updateStudentProfile = async (req, res) => {
   }
 };
 
-// ✏ Update Tutor Profile
+// Update Tutor Profile
 export const updateTutorProfile = async (req, res) => {
   const {
     name,
@@ -279,7 +279,7 @@ export const updateTutorProfile = async (req, res) => {
   }
 
   try {
-    // ✅ Handle Location
+    // Handle Location
     let location = null;
     if (place_id) {
       const locationDetails = await getPlaceDetailsFromGoogle(place_id);
@@ -290,7 +290,7 @@ export const updateTutorProfile = async (req, res) => {
       location = loc;
     }
 
-    // ✅ Build Payload
+    // Build Payload
     const payload = {
       name,
       gender,
@@ -314,7 +314,7 @@ export const updateTutorProfile = async (req, res) => {
       location_id: location?.id,
     };
 
-    // ✅ Update or Create Tutor Profile
+    // Update or Create Tutor Profile
     let tutor = await Tutor.findOne({ where: { user_id } });
 
     if (!tutor) {
@@ -323,7 +323,7 @@ export const updateTutorProfile = async (req, res) => {
       await Tutor.update(payload, { where: { user_id } });
     }
 
-    // ✅ Return Updated Profile
+    // Return Updated Profile
     const profile = await Tutor.findOne({
       where: { user_id },
       include: [Location],
@@ -331,14 +331,14 @@ export const updateTutorProfile = async (req, res) => {
 
     return res.status(200).json({ message: 'Tutor profile updated', profile });
   } catch (error) {
-    console.error('❌ Error updating tutor profile:', error);
+    console.error('Error updating tutor profile:', error);
     return res.status(500).json({
       message: 'Error updating tutor profile',
       error: error.message,
     });
   }
 };
-// ✏ Update email or mobile number
+// Update email or mobile number
 export const updateProfileField = async (req, res) => {
   const { field, value } = req.body;
   const { id: user_id } = req.user;
@@ -358,7 +358,7 @@ export const updateProfileField = async (req, res) => {
   }
 };
 
-// ❌ Delete Profile + User
+// Delete Profile + User
 export const deleteUserAndProfile = async (req, res) => {
   const { id: user_id, role } = req.user;
   try {
@@ -376,7 +376,7 @@ export const deleteUserAndProfile = async (req, res) => {
 
 const BASE_URL = process.env.BASE_URL || 'http://15.206.81.98:3000';
 
-// ✅ Upload/Update Profile Photo
+// Upload/Update Profile Photo
 export const updateProfilePhoto = async (req, res) => {
   const { user } = req;
   const file = req.file;
@@ -396,7 +396,7 @@ export const updateProfilePhoto = async (req, res) => {
   }
 };
 
-// ✅ Delete Profile Photo
+// Delete Profile Photo
 export const deleteProfilePhoto = async (req, res) => {
   const { user } = req;
   try {
@@ -480,7 +480,7 @@ export const uploadTutorDocuments = async (req, res) => {
   }
 };
 
-// ✅ Delete Specific Tutor Document
+// Delete Specific Tutor Document
 export const deleteTutorDocument = async (req, res) => {
   const { user } = req;
   const { type } = req.params;
@@ -508,7 +508,7 @@ export const deleteTutorDocument = async (req, res) => {
 };
 
 
-// 🌍 Public Tutors API
+// Public Tutors API
 export const getPublicTutors = async (req, res) => {
   try {
     const tutors = await Tutor.findAll({
@@ -546,7 +546,7 @@ export const getPublicTutors = async (req, res) => {
 
     const tutorsWithRatings = await Promise.all(
       tutors.map(async (tutor) => {
-        // 🔹 Ratings summary
+        // Ratings summary
         const summary = await Review.findAll({
           where: { tutor_id: tutor.user_id, status: { [Op.ne]: 'deleted' } },
           attributes: [
@@ -559,7 +559,7 @@ export const getPublicTutors = async (req, res) => {
         tutor.dataValues.average_rating = parseFloat(summary[0].avgRating || 0).toFixed(2);
         tutor.dataValues.total_reviews = parseInt(summary[0].count || 0, 10);
 
-        // 🔹 All published reviews
+        // All published reviews
         const allReviews = await Review.findAll({
           where: { tutor_id: tutor.user_id, status: 'published' },
           include: [
@@ -580,7 +580,7 @@ export const getPublicTutors = async (req, res) => {
 
     return res.status(200).json({ tutors: tutorsWithRatings });
   } catch (err) {
-    console.error('❌ Error fetching public tutors:', err);
+    console.error('Error fetching public tutors:', err);
     return res.status(500).json({
       message: 'Failed to fetch tutors',
       error: err.message,
@@ -588,7 +588,7 @@ export const getPublicTutors = async (req, res) => {
   }
 };
 
-// 🌍 Get Single Tutor by ID (Public, with subscription check)
+//  Get Single Tutor by ID (Public, with subscription check)
 export const getPublicTutorById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -628,7 +628,7 @@ export const getPublicTutorById = async (req, res) => {
       return res.status(404).json({ message: 'Tutor not found' });
     }
 
-    // 🔹 Ratings summary
+    // Ratings summary
     const summary = await Review.findAll({
       where: { tutor_id: tutor.user_id, status: { [Op.ne]: 'deleted' } },
       attributes: [
@@ -641,7 +641,7 @@ export const getPublicTutorById = async (req, res) => {
     tutor.dataValues.average_rating = parseFloat(summary[0].avgRating || 0).toFixed(2);
     tutor.dataValues.total_reviews = parseInt(summary[0].count || 0, 10);
 
-    // 🔹 Reviews
+    // Reviews
     const reviews = await Review.findAll({
       where: { tutor_id: tutor.user_id, status: 'published' },
       include: [{ model: User, as: 'Reviewer', attributes: ['id', 'name'] }],
@@ -650,7 +650,7 @@ export const getPublicTutorById = async (req, res) => {
 
     tutor.dataValues.reviews = reviews;
 
-    // 🔒 Hide contact info unless student has active subscription
+    // Hide contact info unless student has active subscription
     if (!user) {
       // Guest user (not logged in)
       delete tutor.User.dataValues.email;
@@ -692,7 +692,7 @@ export const getPublicTutorById = async (req, res) => {
 
     return res.status(200).json(tutor);
   } catch (err) {
-    console.error('❌ Error fetching tutor by ID:', err);
+    console.error('Error fetching tutor by ID:', err);
     return res.status(500).json({ message: 'Failed to fetch tutor', error: err.message });
   }
 };

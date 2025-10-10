@@ -1,25 +1,55 @@
 export const subscriptionTemplates = {
   confirmation: {
-    email: ({ plan, price, duration, userName }) => `
+    email: ({ plan, price, duration, userName, couponCode, discountAmount }) => {
+      const gst = (price * 0.18).toFixed(2);
+      const totalBeforeDiscount = (price * 1.18).toFixed(2);
+      const hasCoupon = couponCode && discountAmount > 0;
+      const finalTotal = hasCoupon
+        ? (price * 1.18 - discountAmount).toFixed(2)
+        : totalBeforeDiscount;
+
+      return `
 Dear ${userName || 'User'},
 
-🎉 Thank you for subscribing to the ${plan} plan on Dronacharya.
+🎉 Thank you for subscribing to the ${plan} on Dronacharya.
 
 Plan: ${plan}
-Price: ₹${price}
+Base Price: ₹${price}
+GST (18%): ₹${gst}
+${hasCoupon ? `Coupon Applied: ${couponCode}\nDiscount: ₹${discountAmount.toFixed(2)}\n` : ''}
+Total Amount Paid: ₹${finalTotal}
 Duration: ${duration} days
 
-Your subscription is now active. You can access premium features immediately.
+Your subscription is now active. You can access all exclusive features immediately.
 
 Happy Learning!
 - Team Dronacharya
-    `.trim(),
+      `.trim();
+    },
 
-    sms: ({ plan }) =>
-      `🎉 You're subscribed to the ${plan} plan on Dronacharya. Enjoy premium access!`,
+    sms: ({ plan, price, couponCode, discountAmount }) => {
+      const totalBeforeDiscount = (price * 1.18).toFixed(2);
+      const hasCoupon = couponCode && discountAmount > 0;
+      const finalTotal = hasCoupon
+        ? (price * 1.18 - discountAmount).toFixed(2)
+        : totalBeforeDiscount;
 
-    whatsapp: ({ plan }) =>
-      `🎉 You're now subscribed to the *${plan}* plan on Dronacharya!\nEnjoy full access to premium features.`.trim()
+      return hasCoupon
+        ? `🎉 You're subscribed to ${plan} on Dronacharya. Total Paid: ₹${finalTotal} (after ₹${discountAmount.toFixed(2)} off with ${couponCode}). Enjoy premium access!`
+        : `🎉 You're subscribed to ${plan} on Dronacharya. Total Paid: ₹${finalTotal} (incl. 18% GST). Enjoy premium access!`;
+    },
+
+    whatsapp: ({ plan, price, couponCode, discountAmount }) => {
+      const totalBeforeDiscount = (price * 1.18).toFixed(2);
+      const hasCoupon = couponCode && discountAmount > 0;
+      const finalTotal = hasCoupon
+        ? (price * 1.18 - discountAmount).toFixed(2)
+        : totalBeforeDiscount;
+
+      return hasCoupon
+        ? `🎉 You're now subscribed to *${plan}* on Dronacharya!\n💰 Total Paid: ₹${finalTotal} (after ₹${discountAmount.toFixed(2)} off using ${couponCode})\nEnjoy full access to premium features.`
+        : `🎉 You're now subscribed to *${plan}* on Dronacharya!\n💰 Total Paid: ₹${finalTotal} (includes 18% GST)\nEnjoy full access to premium features.`;
+    },
   },
 
   renewalReminder: {
@@ -30,7 +60,7 @@ This is a friendly reminder that your ${plan} subscription on Dronacharya will e
 
 To avoid interruption, please renew your subscription before it ends.
 
-Thanks,
+Thanks,  
 Team Dronacharya
     `.trim(),
 
@@ -38,7 +68,7 @@ Team Dronacharya
       `Reminder: Your ${plan} subscription ends in ${daysLeft} days. Renew on Dronacharya.`,
 
     whatsapp: ({ plan, daysLeft }) =>
-      `⏳ Your *${plan}* subscription on Dronacharya expires in ${daysLeft} days.\nRenew now to stay connected.`.trim()
+      `⏳ Your *${plan}* subscription on Dronacharya expires in ${daysLeft} days.\nRenew now to stay connected.`.trim(),
   },
 
   expiryNotice: {
@@ -49,7 +79,7 @@ Your ${plan} subscription has expired.
 
 To continue accessing premium features, please renew your subscription.
 
-We hope to see you back soon!
+We hope to see you back soon!  
 Team Dronacharya
     `.trim(),
 
@@ -57,6 +87,6 @@ Team Dronacharya
       `Your ${plan} subscription on Dronacharya has expired. Renew now to continue access.`,
 
     whatsapp: ({ plan }) =>
-      `❌ Your *${plan}* subscription has expired.\nRenew now on Dronacharya to restore access.`.trim()
-  }
+      `Your *${plan}* subscription has expired.\nRenew now on Dronacharya to restore access.`.trim(),
+  },
 };

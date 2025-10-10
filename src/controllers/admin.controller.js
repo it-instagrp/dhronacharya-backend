@@ -893,7 +893,7 @@ export const getStudentEnquiries = async (req, res) => {
         {
           model: User,
           attributes: ["id", "name", "email", "mobile_number", "is_active"],
-          required: false, // include even if no User linked
+          required: false,
         },
         {
           model: Location,
@@ -903,7 +903,7 @@ export const getStudentEnquiries = async (req, res) => {
       order: [["created_at", "DESC"]],
     });
 
-    // ✅ Count total enquiries & verified enquiries
+    // Count total enquiries & verified enquiries
     const enquiryCountMap = {};
     const verifiedCountMap = {};
 
@@ -919,6 +919,18 @@ export const getStudentEnquiries = async (req, res) => {
     // ✅ Format response
     const formatted = enquiries.map((student) => {
       const key = student.user_id || `guest-${student.mobile_number || student.name}`;
+      const totalEnquiries = enquiryCountMap[key];
+      const verifiedEnquiries = verifiedCountMap[key] || 0;
+
+      // ✅ Determine user status
+      let status = "not registered";
+      if (student.User) {
+        if (student.User.is_active) status = "verified";
+        else if (!student.User.is_active && totalEnquiries > 1)
+          status = "resent"; // <-- unverified but sent again
+        else status = "pending";
+      }
+
       return {
         id: student.id,
         name: student.name,
@@ -934,17 +946,17 @@ export const getStudentEnquiries = async (req, res) => {
         languages: student.languages,
         school_name: student.school_name,
         sms_alerts: student.sms_alerts,
-        created_at: student.created_at, // enquiry creation time
-        updated_at: student.updated_at, // last update
-        enquiry_count: enquiryCountMap[key],             // ✅ total enquiries
-        verified_enquiry_count: verifiedCountMap[key] || 0, // ✅ verified enquiries
+        created_at: student.created_at,
+        updated_at: student.updated_at,
+        enquiry_count: totalEnquiries,
+        verified_enquiry_count: verifiedEnquiries,
         user: student.User
           ? {
               id: student.User.id,
               name: student.User.name,
               email: student.User.email,
               mobile_number: student.User.mobile_number,
-              status: student.User.is_active ? "verified" : "pending",
+              status, // ✅ pending / verified / resent
             }
           : {
               status: "not registered",

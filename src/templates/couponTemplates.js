@@ -2,7 +2,7 @@
 
 export const couponTemplates = {
   // -------------------------
-  // 📧 Plain Text Email Templates
+  // 📧 Email Templates
   // -------------------------
 
   newUserCouponEmail: ({ name, couponCode, discount, expiryDate }) => ({
@@ -10,13 +10,13 @@ export const couponTemplates = {
     text: `
 Hi ${name},
 
-We’re excited to have you on board!
+Welcome to Dronacharya!
 
-Use the coupon code "${couponCode}" to get ${discount}${typeof discount === 'number' ? '%' : ''} off on your first subscription.
+Use coupon code "${couponCode}" to get ${discount}${typeof discount === 'number' ? '%' : ''} off on your first subscription.
 
-This coupon is valid until: ${new Date(expiryDate).toLocaleDateString()}
+Valid until: ${new Date(expiryDate).toLocaleDateString()}
 
-Apply it at checkout and start learning!
+Start learning and enjoy exclusive benefits!
 
 – Team Dronacharya
     `.trim()
@@ -27,13 +27,13 @@ Apply it at checkout and start learning!
     text: `
 Hi ${name},
 
-Don't miss this limited-time offer!
+Don't miss this offer!
 
-Use the coupon code "${couponCode}" to get ${discount} off on your next subscription or course.
+Use coupon code "${couponCode}" to get ${discount} off on your next subscription or course.
 
-Offer valid until: ${new Date(expiryDate).toLocaleDateString()}
+Expires: ${new Date(expiryDate).toLocaleDateString()}
 
-Apply it at checkout before it’s gone!
+Apply it at checkout today!
 
 – Team Dronacharya
     `.trim()
@@ -44,7 +44,7 @@ Apply it at checkout before it’s gone!
     text: `
 Hi ${name},
 
-Your coupon "${couponCode}" was applied successfully.
+Your coupon "${couponCode}" has been applied successfully.
 
 You saved ${discount}, and your final payable amount is ₹${finalAmount}.
 
@@ -59,9 +59,9 @@ Thank you for choosing Dronacharya!
     text: `
 Hi ${name},
 
-The coupon code "${couponCode}" you tried to use is either invalid or has expired.
+The coupon code "${couponCode}" you entered is invalid or expired.
 
-Please check the code and try again, or contact support if you need help.
+Please check the code or try a different one. Contact support if needed.
 
 – Team Dronacharya
     `.trim()
@@ -81,10 +81,10 @@ Please check the code and try again, or contact support if you need help.
     `✅ Hi ${name}, your coupon *${couponCode}* was applied successfully!\n💰 You saved ${discount}.\n🧾 Final amount: ₹${finalAmount}\nThanks for using Dronacharya!`,
 
   invalidCouponWhatsApp: ({ name, couponCode }) =>
-    `⚠️ Hi ${name}, the coupon code *${couponCode}* is invalid or expired.\n🙋‍♂️ Please try a different code or contact support.`,
+    `⚠️ Hi ${name}, the coupon code *${couponCode}* is invalid or expired.\n🙋‍♂️ Please try another or contact support.`,
 
   // -------------------------
-  // 📩 SMS-Friendly Templates (under 160 chars)
+  // 📩 SMS Templates (160 chars or less)
   // -------------------------
 
   newUserCouponSMS: ({ couponCode, discount, expiryDate }) =>
