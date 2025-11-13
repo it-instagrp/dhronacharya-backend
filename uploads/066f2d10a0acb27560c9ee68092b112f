@@ -1,0 +1,5 @@
+name,email,mobile_number,subjects,classes,degrees,profile_status,profile_photo,languages,experience,pricing_per_hour,introduction_text,teaching_modes,introduction_video,documents
+Ravi Kumar,ravi@example.com,9876543210,Math,10,B.Sc,approved,,English,5,500,Experienced Math tutor,Online,,
+Priya Sharma,priya@example.com,9876501234,Science,9,M.Sc,pending,,"English,Hindi",3,400,Passionate Science teacher,Offline,,
+Amit Verma,amit@example.com,9876512345,English,8,M.A English,approved,,English,4,450,Expert in English grammar and literature,"Online,Offline",,
+Neha Gupta,neha@example.com,9876523456,Physics,11,M.Sc Physics,approved,,"English,Hindi",6,600,Specialist in Physics concepts and JEE prep,Online,,
