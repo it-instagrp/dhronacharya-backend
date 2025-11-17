@@ -13,7 +13,9 @@ import {
   deleteGroupClass,
   updateGroupClass,
   updateGroup,   //  added
-  deleteGroup    // added
+  deleteGroup,
+  cancelGroupClass,
+  completeGroupClass
 } from "../controllers/group.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -61,5 +63,11 @@ router.put("/:groupId", updateGroup);
 
 //  Delete a group
 router.delete("/:groupId", deleteGroup);
+
+// Cancel group class
+router.put("/classes/:classId/cancel", cancelGroupClass);
+
+// Mark as completed
+router.put("/classes/:classId/complete", completeGroupClass);
 
 export default router;

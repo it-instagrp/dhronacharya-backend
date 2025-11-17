@@ -10,7 +10,7 @@ import { templates } from '../templates/index.js';
 const { Group, GroupMember, User, ClassSchedule } = db;
 const { group: groupTemplates, class: classTemplates } = templates;
 
-// ➕ Create a new group (duplicate name check, returns group with members)
+// Create a new group (duplicate name check, returns group with members)
 export const createGroup = async (req, res) => {
   const rawName = req.body?.name;
   const { type } = req.body;
@@ -59,7 +59,7 @@ export const createGroup = async (req, res) => {
       include: [
         {
           model: User,
-          as: 'User', // ✅ important
+          as: 'User', // important
           attributes: ['id', 'name', 'email', 'role', 'mobile_number']
         }
       ]
@@ -93,7 +93,7 @@ export const createGroup = async (req, res) => {
   }
 };
 
-// ➕ Add members to group (returns updated group with members)
+// Add members to group (returns updated group with members)
 export const addMembersToGroup = async (req, res) => {
   const { group_id, member_ids } = req.body;
 
@@ -115,7 +115,7 @@ export const addMembersToGroup = async (req, res) => {
 
     await GroupMember.bulkCreate(members, { ignoreDuplicates: true });
 
-    // 🔥 Fetch updated group with all members
+    // Fetch updated group with all members
     const updatedGroup = await Group.findByPk(group.id, {
   include: [
     {
@@ -124,7 +124,7 @@ export const addMembersToGroup = async (req, res) => {
       include: [
         {
           model: User,
-          as: 'User', // ✅ important
+          as: 'User', //important
           attributes: ['id', 'name', 'email', 'role', 'mobile_number']
         }
       ]
@@ -215,7 +215,7 @@ export const scheduleGroupClass = async (req, res) => {
     const tutor = await User.findByPk(finalTutorId);
     if (!tutor) return res.status(404).json({ message: 'Tutor not found' });
 
-    // ✅ Meeting link required only if ONLINE
+    // Meeting link required only if ONLINE
     let finalMeetingLink = null;
     const finalMode = mode || 'online';
     if (finalMode === 'online') {
@@ -312,7 +312,7 @@ export const getGroupMembers = async (req, res) => {
   }
 };
 
-// 📆 Get all groups for the logged-in user
+// Get all groups for the logged-in user
 export const getMyGroups = async (req, res) => {
   const { id: userId } = req.user;
   try {
@@ -337,14 +337,14 @@ export const getMyGroups = async (req, res) => {
   }
 };
 
-// ❌ Remove a member from group (returns updated group)
+// Remove a member from group (returns updated group)
 export const removeGroupMember = async (req, res) => {
   const { groupId, userId } = req.params;
   try {
     const removed = await GroupMember.destroy({ where: { group_id: groupId, user_id: userId } });
     if (!removed) return res.status(404).json({ message: 'Member not found in group' });
 
-    // 🔥 Fetch updated group with members
+    // Fetch updated group with members
     const updatedGroup = await Group.findByPk(groupId, {
       include: [
         {
@@ -365,7 +365,7 @@ export const removeGroupMember = async (req, res) => {
   }
 };
 
-// 🔡 Admin: Get all groups
+// Admin: Get all groups
 export const getAllGroupsForAdmin = async (req, res) => {
   const { role } = req.user;
   if (role !== 'admin') return res.status(403).json({ message: 'Only admin can access this' });
@@ -390,7 +390,7 @@ export const getAllGroupsForAdmin = async (req, res) => {
 
 // src/controllers/group.controller.js
 
-// 📆 Get all scheduled classes for a group
+// Get all scheduled classes for a group
 export const getGroupClasses = async (req, res) => {
   const { groupId } = req.params;
 
@@ -420,13 +420,13 @@ export const getGroupClasses = async (req, res) => {
 
     return res.status(200).json({ classes });
   } catch (error) {
-    console.error("❌ Error fetching group classes:", error);
+    console.error("Error fetching group classes:", error);
     return res.status(500).json({ message: "Failed to fetch group classes", error: error.message });
   }
 };
 
-// 📆 Get all scheduled classes for logged-in user
-// 📆 Get all scheduled classes for logged-in user (both as tutor and as group member)
+// Get all scheduled classes for logged-in user
+//  Get all scheduled classes for logged-in user (both as tutor and as group member)
 export const getMyScheduledClasses = async (req, res) => {
   const { id: userId, role } = req.user;
 
@@ -497,13 +497,13 @@ export const getMyScheduledClasses = async (req, res) => {
       classes // Also include direct classes property for backward compatibility
     });
   } catch (error) {
-    console.error("❌ Error fetching my scheduled classes:", error);
+    console.error("Error fetching my scheduled classes:", error);
     return res.status(500).json({ message: "Failed to fetch my scheduled classes", error: error.message });
   }
 };
 // src/controllers/group.controller.js
 
-// ❌ Delete a scheduled group class
+// Delete a scheduled group class
 export const deleteGroupClass = async (req, res) => {
   const { classId } = req.params;
   const { id: userId, role } = req.user;
@@ -514,7 +514,7 @@ export const deleteGroupClass = async (req, res) => {
       return res.status(404).json({ message: "Class not found" });
     }
 
-    // ✅ Only tutor who created it or admin can delete
+    // Only tutor who created it or admin can delete
     if (role !== "admin" && scheduledClass.tutor_id !== userId) {
       return res.status(403).json({ message: "Not authorized to delete this class" });
     }
@@ -529,7 +529,7 @@ export const deleteGroupClass = async (req, res) => {
 };
 // src/controllers/group.controller.js
 
-// ✏️ Update (reschedule) a group class
+// Update (reschedule) a group class
 export const updateGroupClass = async (req, res) => {
   const { classId } = req.params;
   const { name, date_time, meeting_link, mode, type } = req.body;
@@ -541,7 +541,7 @@ export const updateGroupClass = async (req, res) => {
       return res.status(404).json({ message: "Class not found" });
     }
 
-    // ✅ Only tutor who created it or admin can update
+    // Only tutor who created it or admin can update
     if (role !== "admin" && scheduledClass.tutor_id !== userId) {
       return res.status(403).json({ message: "Not authorized to update this class" });
     }
@@ -564,7 +564,7 @@ export const updateGroupClass = async (req, res) => {
 
     return res.status(200).json({ message: "Class updated successfully", class: scheduledClass });
   } catch (error) {
-    console.error("❌ Error updating group class:", error);
+    console.error("Error updating group class:", error);
     return res.status(500).json({ message: "Failed to update class", error: error.message });
   }
 };
@@ -582,7 +582,7 @@ export const updateGroup = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    // ✅ Only creator or admin can update
+    // Only creator or admin can update
     if (role !== "admin" && group.creator_id !== userId) {
       return res.status(403).json({ message: "Not authorized to update this group" });
     }
@@ -604,7 +604,7 @@ export const updateGroup = async (req, res) => {
 
     await group.save();
 
-    // 🔥 Fetch updated group with members
+    // Fetch updated group with members
     const updatedGroup = await db.Group.findByPk(group.id, {
       include: [
         {
@@ -618,7 +618,7 @@ export const updateGroup = async (req, res) => {
 
     return res.status(200).json({ message: "Group updated successfully", group: updatedGroup });
   } catch (error) {
-    console.error("❌ Error updating group:", error);
+    console.error("Error updating group:", error);
     return res.status(500).json({ message: "Failed to update group", error: error.message });
   }
 };
@@ -634,7 +634,7 @@ export const deleteGroup = async (req, res) => {
       return res.status(404).json({ message: "Group not found" });
     }
 
-    // ✅ Only creator or admin can delete
+    // Only creator or admin can delete
     if (role !== "admin" && group.creator_id !== userId) {
       return res.status(403).json({ message: "Not authorized to delete this group" });
     }
@@ -643,7 +643,206 @@ export const deleteGroup = async (req, res) => {
 
     return res.status(200).json({ message: "Group deleted successfully" });
   } catch (error) {
-    console.error("❌ Error deleting group:", error);
+    console.error("Error deleting group:", error);
     return res.status(500).json({ message: "Failed to delete group", error: error.message });
+  }
+};
+
+// CANCEL a group class (instead of deleting)
+export const cancelGroupClass = async (req, res) => {
+  const { classId } = req.params;
+  const { cancellation_reason } = req.body;
+  const { id: userId, role } = req.user;
+
+  try {
+    const scheduledClass = await ClassSchedule.findByPk(classId, {
+      include: [
+        {
+          model: Group,
+          include: [
+            {
+              model: GroupMember,
+              as: "Members",
+              include: [{ model: User }]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!scheduledClass) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    // Authorization: only tutor who created it OR admin
+    if (role !== "admin" && scheduledClass.tutor_id !== userId) {
+      return res.status(403).json({ message: "Not authorized to cancel this class" });
+    }
+
+    // Cannot cancel completed class
+    if (scheduledClass.status === "completed") {
+      return res.status(400).json({ message: "Cannot cancel a completed class" });
+    }
+
+    // Already cancelled
+    if (scheduledClass.status === "cancelled") {
+      return res.status(400).json({ message: "Class is already cancelled" });
+    }
+
+    // Cancel class
+    scheduledClass.status = "cancelled";
+    scheduledClass.cancellation_reason = cancellation_reason || "Not specified";
+    await scheduledClass.save();
+
+    // If group class, notify members
+    const members = scheduledClass.Group?.Members || [];
+    const formattedDate = formatDateNative(scheduledClass.date_time);
+
+    const notifications = [];
+
+    for (const member of members) {
+      const user = member.User;
+      if (!user) continue;
+
+      if (user.email && classTemplates.cancelled?.email) {
+        notifications.push(
+          sendEmail(
+            user.email,
+            "Group Class Cancelled",
+            classTemplates.cancelled.email({
+              className: scheduledClass.title,
+              cancellationReason: scheduledClass.cancellation_reason,
+              originalDateTime: formattedDate,
+              recipientName: user.name
+            })
+          )
+        );
+      }
+
+      if (user.mobile_number && classTemplates.cancelled?.sms) {
+        notifications.push(
+          sendSMS(
+            user.mobile_number,
+            classTemplates.cancelled.sms({
+              className: scheduledClass.title,
+              cancellationReason: scheduledClass.cancellation_reason
+            })
+          )
+        );
+      }
+    }
+
+    await Promise.allSettled(notifications);
+
+    return res.status(200).json({
+      message: "Class cancelled successfully",
+      class: scheduledClass
+    });
+
+  } catch (err) {
+    console.error("Cancel group class error:", err);
+    return res.status(500).json({
+      message: "Failed to cancel group class",
+      error: err.message
+    });
+  }
+};
+
+
+//completed class mark
+export const completeGroupClass = async (req, res) => {
+  const { classId } = req.params;
+  const { id: userId, role } = req.user;
+
+  try {
+    const scheduledClass = await ClassSchedule.findByPk(classId, {
+      include: [
+        {
+          model: Group,
+          include: [
+            {
+              model: GroupMember,
+              as: "Members",
+              include: [{ model: User }]
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!scheduledClass) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    // Only tutor who created it OR admin can complete
+    if (role !== "admin" && scheduledClass.tutor_id !== userId) {
+      return res.status(403).json({ message: "Not authorized to mark class as completed" });
+    }
+
+    if (scheduledClass.status === "cancelled") {
+      return res.status(400).json({ message: "Cannot complete a cancelled class" });
+    }
+
+    if (scheduledClass.status === "completed") {
+      return res.status(400).json({ message: "Class is already completed" });
+    }
+
+    // Update status
+    scheduledClass.status = "completed";
+    await scheduledClass.save();
+
+    // ---------------------------
+    // SEND NOTIFICATIONS (GROUP ONLY)
+    // ---------------------------
+    const members = scheduledClass.Group?.Members || [];  // SAFE ACCESS
+    const formattedDate = formatDateNative(scheduledClass.date_time);
+    const notif = [];
+
+    for (const m of members) {
+      const u = m?.User;
+      if (!u) continue;
+
+      // EMAIL
+      if (u.email && classTemplates.completed?.email) {
+        notif.push(
+          sendEmail(
+            u.email,
+            "Group Class Completed",
+            classTemplates.completed.email({
+              className: scheduledClass.title,
+              dateTime: formattedDate,
+              recipientName: u.name
+            })
+          )
+        );
+      }
+
+      // SMS
+      if (u.mobile_number && classTemplates.completed?.sms) {
+        notif.push(
+          sendSMS(
+            u.mobile_number,
+            classTemplates.completed.sms({
+              className: scheduledClass.title,
+              dateTime: formattedDate
+            })
+          )
+        );
+      }
+    }
+
+    await Promise.allSettled(notif);
+
+    return res.status(200).json({
+      message: "Class marked as completed",
+      class: scheduledClass
+    });
+
+  } catch (err) {
+    console.error("Complete group class error:", err);
+    return res.status(500).json({
+      message: "Failed to complete class",
+      error: err.message
+    });
   }
 };

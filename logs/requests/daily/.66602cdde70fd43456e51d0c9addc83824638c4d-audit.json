@@ -39,6 +39,21 @@
             "date": 1762924052167,
             "name": "logs\\requests\\daily\\2025-11-12.log",
             "hash": "ec562ad2ba519361e7595d82fb1a5e85605dcfcb5216e646f172636467f870f6"
+        },
+        {
+            "date": 1763015370485,
+            "name": "logs\\requests\\daily\\2025-11-13.log",
+            "hash": "db1b02833bb8c66e69c77cb5f45a971df1d45f61ed54df88af3c058d563588be"
+        },
+        {
+            "date": 1763094839993,
+            "name": "logs\\requests\\daily\\2025-11-14.log",
+            "hash": "dd5b331a47379ac48350b3d84023c24b67953576bb2c2f4bd237fce1bd8618b5"
+        },
+        {
+            "date": 1763366839503,
+            "name": "logs\\requests\\daily\\2025-11-17.log",
+            "hash": "14b2963cc025d68f893804825a28f3143433e3a68730664e86d3afe0e219da1e"
         }
     ],
     "hashType": "sha256"
