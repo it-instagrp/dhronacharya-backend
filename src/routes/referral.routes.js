@@ -18,7 +18,7 @@ router.get('/my-codes', authenticate, getMyReferralCodes);
 router.post('/apply', authenticate, applyReferralCode);
 
 // ✅ Admin routes (using role-based guard)
-router.get('/all', authenticate, authorize('admin'), getAllReferrals);
-router.put('/reward/:id', authenticate, authorize('admin'), markRewardGiven);
+router.get('/all', authenticate, authorize('admin','super_admin'), getAllReferrals);
+router.put('/reward/:id', authenticate, authorize('admin','super_admin'), markRewardGiven);
 
 export default router;

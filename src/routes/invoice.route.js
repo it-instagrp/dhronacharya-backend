@@ -16,10 +16,10 @@ router.use(authenticate);
 router.get('/my', getMyInvoices);
 
 // For admin
-router.get('/admin/all', authorize('admin'), getAllInvoicesForAdmin);
+router.get('/admin/all', authorize('admin','super_admin'), getAllInvoicesForAdmin);
 
 // Common invoice PDF (all roles)
 router.get('/:payment_id/pdf', generateInvoice);
 
-router.get('/admin/csv', authorize('admin'), exportAllInvoicesCSV);
+router.get('/admin/csv', authorize('admin','super_admin'), exportAllInvoicesCSV);
 export default router;

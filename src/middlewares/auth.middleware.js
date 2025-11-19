@@ -2,7 +2,9 @@ import HttpStatus from "http-status-codes";
 import jwt from "jsonwebtoken";
 import db from "../models/index.js";
 
-const { User, Tutor, Student, Admin } = db;
+// const { User, Tutor, Student, Admin } = db;
+const { User, Tutor, Student, Admin, SuperAdmin } = db;
+
 
 /**
  * Enhanced authentication middleware with:
@@ -32,6 +34,10 @@ export const authenticate = async (req, res, next) => {
       { method: "POST", path: "/api/payments/verify-payment" },
       { method: "GET", path: "/api/subjects" },
       { method: "POST", path: "/api/subjects/bulk" },
+      { method: "POST", path: "/api/super-admin/signup" },
+       { method: "POST", path: "/api/super-admin/login" },
+       
+
     ];
 
     // Check if current route is public
@@ -63,6 +69,7 @@ export const authenticate = async (req, res, next) => {
         { model: Tutor, as: "Tutor" },
         { model: Student, as: "Student" },
         { model: Admin, as: "Admin" },
+        { model: SuperAdmin, as: "SuperAdmin" }
       ],
     });
 
@@ -80,7 +87,8 @@ export const authenticate = async (req, res, next) => {
       email: user.email,
       mobile_number: user.mobile_number,
       role: user.role,
-      profile: user.Tutor || user.Student || user.Admin || null,
+     profile: user.Tutor || user.Student || user.Admin || user.SuperAdmin || null,
+
       token,
     };
 

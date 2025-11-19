@@ -137,7 +137,8 @@ export const createEnquiry = async (req, res) => {
 export const getEnquiries = async (req, res) => {
   try {
     const currentUser = req.user;
-    const isAdmin = currentUser.role === "admin";
+    // const isAdmin = currentUser.role === "admin";
+const isAdmin = currentUser.role === "admin" || currentUser.role === "super_admin";
 
     // Admin sees all, others see only related enquiries
     const whereClause = isAdmin

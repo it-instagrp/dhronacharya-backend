@@ -499,7 +499,7 @@ export const updateClass = async (req, res) => {
   try {
     const scheduledClass = await ClassSchedule.findByPk(id);
     if (!scheduledClass) return res.status(404).json({ message: 'Class not found' });
-    if (role !== 'admin' && userId !== scheduledClass.tutor_id && userId !== scheduledClass.student_id) {
+    if (role !== 'admin' && role !== 'super_admin'  && userId !== scheduledClass.tutor_id && userId !== scheduledClass.student_id) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -579,7 +579,7 @@ export const cancelClass = async (req, res) => {
       return res.status(404).json({ message: 'Class not found' });
     }
 
-    if (role !== 'admin' && userId !== scheduledClass.tutor_id && userId !== scheduledClass.student_id) {
+    if (role !== 'admin' && role !== 'super_admin'  && userId !== scheduledClass.tutor_id && userId !== scheduledClass.student_id) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -703,7 +703,7 @@ export const getMyClasses = async (req, res) => {
 // Admin: Get All Classes
 export const getAllClasses = async (req, res) => {
   const { role } = req.user;
-  if (role !== 'admin') return res.status(403).json({ message: 'Only admins can view all classes' });
+  if (role !== 'admin' && role !== 'super_admin') return res.status(403).json({ message: 'Only admins can view all classes' });
 
   try {
     const allClasses = await ClassSchedule.findAll({
@@ -732,7 +732,7 @@ export const deleteClassPermanently = async (req, res) => {
     }
 
     // Only admin or class owner (tutor/student) can delete
-    if (role !== 'admin' && userId !== scheduledClass.tutor_id && userId !== scheduledClass.student_id) {
+    if (role !== 'admin' && role !== 'super_admin' && userId !== scheduledClass.tutor_id && userId !== scheduledClass.student_id) {
       return res.status(403).json({ message: 'Unauthorized to delete this class' });
     }
 

@@ -13,6 +13,7 @@ const router = express.Router();
 
 // Apply auth middleware for all class routes
 router.use(authenticate);
+router.get('/all', authorize('admin','super_admin'), getAllClasses);
 
 // Schedule a class (student/tutor)
 router.post('/', createClass);
@@ -27,7 +28,7 @@ router.patch('/:id', updateClass);
 router.delete('/:id', cancelClass);
 
 //  Admin: View all scheduled classes
-router.get('/all', authorize('admin'), getAllClasses);
+
 // Permanently delete a class (admin/tutor/student)
 router.delete('/:id/permanent', deleteClassPermanently);
 

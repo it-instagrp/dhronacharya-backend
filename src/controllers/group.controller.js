@@ -368,7 +368,7 @@ export const removeGroupMember = async (req, res) => {
 // Admin: Get all groups
 export const getAllGroupsForAdmin = async (req, res) => {
   const { role } = req.user;
-  if (role !== 'admin') return res.status(403).json({ message: 'Only admin can access this' });
+  if (role !== 'admin' && role !== 'super_admin' ) return res.status(403).json({ message: 'Only admin can access this' });
   try {
     const groups = await Group.findAll({
       include: [
@@ -515,7 +515,7 @@ export const deleteGroupClass = async (req, res) => {
     }
 
     // Only tutor who created it or admin can delete
-    if (role !== "admin" && scheduledClass.tutor_id !== userId) {
+    if (role !== "admin" && role !== 'super_admin' && scheduledClass.tutor_id !== userId ) {
       return res.status(403).json({ message: "Not authorized to delete this class" });
     }
 
@@ -542,7 +542,7 @@ export const updateGroupClass = async (req, res) => {
     }
 
     // Only tutor who created it or admin can update
-    if (role !== "admin" && scheduledClass.tutor_id !== userId) {
+    if (role !== "admin"  && role !== 'super_admin' && scheduledClass.tutor_id !== userId) {
       return res.status(403).json({ message: "Not authorized to update this class" });
     }
 
@@ -583,7 +583,7 @@ export const updateGroup = async (req, res) => {
     }
 
     // Only creator or admin can update
-    if (role !== "admin" && group.creator_id !== userId) {
+    if (role !== "admin" && role !== 'super_admin' && group.creator_id !== userId) {
       return res.status(403).json({ message: "Not authorized to update this group" });
     }
 
@@ -635,7 +635,7 @@ export const deleteGroup = async (req, res) => {
     }
 
     // Only creator or admin can delete
-    if (role !== "admin" && group.creator_id !== userId) {
+    if (role !== "admin" && role !== 'super_admin' && group.creator_id !== userId) {
       return res.status(403).json({ message: "Not authorized to delete this group" });
     }
 
@@ -675,7 +675,7 @@ export const cancelGroupClass = async (req, res) => {
     }
 
     // Authorization: only tutor who created it OR admin
-    if (role !== "admin" && scheduledClass.tutor_id !== userId) {
+    if (role !== "admin" && role !== 'super_admin' && scheduledClass.tutor_id !== userId) {
       return res.status(403).json({ message: "Not authorized to cancel this class" });
     }
 
@@ -775,7 +775,7 @@ export const completeGroupClass = async (req, res) => {
     }
 
     // Only tutor who created it OR admin can complete
-    if (role !== "admin" && scheduledClass.tutor_id !== userId) {
+    if (role !== "admin" && role !== 'super_admin' && scheduledClass.tutor_id !== userId) {
       return res.status(403).json({ message: "Not authorized to mark class as completed" });
     }
 

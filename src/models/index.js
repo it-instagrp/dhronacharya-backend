@@ -1,4 +1,5 @@
 // src/models/index.js
+
 import sequelize from '../config/database.js';
 import User from './user.js';
 import Admin from './admin.js';
@@ -26,7 +27,7 @@ import ContactLog from './ContactLog.js';
 import UserCoupon from './userCoupon.js';
 import Otp from './Otp.js';
 import Blog from './blog.js';
-
+import SuperAdmin from './superAdmin.js';
 
 
 
@@ -42,7 +43,7 @@ db.Student = Student;
 db.Class = Class;
 db.Subject = Subject;
 db.ContactLog = ContactLog;
-
+db.SuperAdmin = SuperAdmin; //super admin
 
 // Role associations
 db.User.hasOne(db.Admin, { foreignKey: 'user_id', onDelete: 'CASCADE' });
@@ -52,6 +53,10 @@ db.User.hasOne(db.Student, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 db.Admin.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 db.Tutor.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 db.Student.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+//super admin 
+db.User.hasOne(db.SuperAdmin, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+db.SuperAdmin.belongsTo(db.User, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+
 
 // Other models
 db.SubscriptionPlan = SubscriptionPlan;

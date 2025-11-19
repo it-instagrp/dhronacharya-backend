@@ -215,8 +215,11 @@ export const signup = async (req, res) => {
 
 
       if (role === "admin") {
-        await Admin.create({ user_id: user.id, name });
-      } else if (role === "tutor") {
+  return res.status(403).json({
+    message: "Admins cannot self-register. Only Super Admin can create admins."
+  });
+}
+ else if (role === "tutor") {
         await Tutor.create({
           user_id: user.id,
           name,
@@ -412,6 +415,14 @@ export const login = async (req, res) => {
         message: 'Invalid credentials or account not verified'
       });
     }
+     
+    //admin login-super admin
+    // If admin is not created by Super Admin (no Admin table entry)
+if (user.role === "admin" && !user.Admin) {
+  return res.status(403).json({
+    message: "Admin login not allowed. Super Admin has not approved your account."
+  });
+}
 
 
     if (user.role === "student") {

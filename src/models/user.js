@@ -42,7 +42,7 @@ const User = sequelize.define('User', {
     defaultValue: 'student',
     allowNull: false,
     validate: {
-      isIn: [['admin', 'tutor', 'student']]
+      isIn: [['admin', 'tutor', 'student','super_admin',]]
     }
   },
   is_active: {

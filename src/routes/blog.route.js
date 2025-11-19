@@ -30,7 +30,7 @@ router.get('/:slug', getBlogBySlug);
 router.post(
   '/',
   authenticate,
-  authorize('admin'),
+  authorize('admin','super_admin'),
   uploadBlogImage.single('cover_image'), // ✅ allow image upload from laptop
   createBlog
 );
@@ -38,11 +38,11 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize('admin'),
+  authorize('admin','super_admin'),
   uploadBlogImage.single('cover_image'), // allow new image upload while updating
   updateBlog
 );
 
-router.delete('/:id', authenticate, authorize('admin'), deleteBlog);
+router.delete('/:id', authenticate, authorize('admin','super_admin'), deleteBlog);
 
 export default router;

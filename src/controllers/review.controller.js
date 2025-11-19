@@ -137,23 +137,52 @@ export const updateReview = async (req, res) => {
 };
 
 // Delete review
+// export const deleteReview = async (req, res) => {
+//   try {
+//     const userId = req.user?.id;
+//     const isAdmin = req.user?.role === 'admin';
+//     const id = req.params.id;
+//     const review = await Review.findByPk(id);
+//     if (!review) return res.status(HttpStatus.NOT_FOUND).json({ message: 'Review not found' });
+//     if (review.reviewer_id !== userId && !isAdmin) return res.status(HttpStatus.FORBIDDEN).json({ message: 'Not allowed' });
+
+//     review.status = 'deleted';
+//     await review.save();
+//     return res.status(HttpStatus.OK).json({ message: 'Review deleted' });
+//   } catch (err) {
+//     console.error('Delete review error', err);
+//     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: err.message });
+//   }
+// };
+
 export const deleteReview = async (req, res) => {
   try {
     const userId = req.user?.id;
     const isAdmin = req.user?.role === 'admin';
+    const isSuperAdmin = req.user?.role === 'super_admin';   // ✅ added
     const id = req.params.id;
+
     const review = await Review.findByPk(id);
-    if (!review) return res.status(HttpStatus.NOT_FOUND).json({ message: 'Review not found' });
-    if (review.reviewer_id !== userId && !isAdmin) return res.status(HttpStatus.FORBIDDEN).json({ message: 'Not allowed' });
+    if (!review)
+      return res.status(HttpStatus.NOT_FOUND).json({ message: 'Review not found' });
+
+    // ❌ Old: only admin or owner
+    // if (review.reviewer_id !== userId && !isAdmin)
+
+    // ✅ New: allow super_admin too
+    if (review.reviewer_id !== userId && !isAdmin && !isSuperAdmin)
+      return res.status(HttpStatus.FORBIDDEN).json({ message: 'Not allowed' });
 
     review.status = 'deleted';
     await review.save();
+
     return res.status(HttpStatus.OK).json({ message: 'Review deleted' });
   } catch (err) {
     console.error('Delete review error', err);
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: err.message });
   }
 };
+
 
 // Add comment
 export const addComment = async (req, res) => {

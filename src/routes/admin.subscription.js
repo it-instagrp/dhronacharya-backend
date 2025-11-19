@@ -14,7 +14,7 @@ import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 router.use(authenticate);
-router.use(authorize('admin'));
+router.use(authorize('admin','super_admin'));
 
 // 👉 GET all subscribed users (optional: ?role=tutor or ?role=student)
 router.get('/', getAllSubscriptions);

@@ -28,6 +28,7 @@ import groupRoutes from './group.routes.js';
 import reviewRoutes from './review.routes.js';
 import subjectRoutes from './subject.routes.js';
 import publicRoutes from "./public.routes.js";
+import superAdminRoutes from "./superAdmin.routes.js";
 
 import contactusRoutes from './contactus.routes.js';
 
@@ -65,6 +66,7 @@ const routes = () => {
   router.use('/groups', groupRoutes);
   // inside routes()
 router.use('/reviews', reviewRoutes);
+router.use("/super-admin", superAdminRoutes); //super admin 
 
 router.use('/subjects', subjectRoutes);
 router.use("/public", publicRoutes);
