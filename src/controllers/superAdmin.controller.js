@@ -44,9 +44,9 @@ export const superAdminSignup = async (req, res) => {
 };
 
 
-/* -----------------------------------------
-   CREATE ADMIN (Only Super Admin)
------------------------------------------- */
+
+  //  CREATE ADMIN (Only Super Admin)
+
 export const createAdmin = async (req, res) => {
   try {
     const { name, email, mobile_number, password } = req.body;
@@ -65,7 +65,7 @@ export const createAdmin = async (req, res) => {
       is_active: true
     });
 
-    // FIX → Admin needs a name
+    // FIX  Admin needs a name
     await Admin.create({
       user_id: user.id,
       name: name
