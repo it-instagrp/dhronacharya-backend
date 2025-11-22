@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { authenticate } from './middlewares/auth.middleware.js';
+import { startMessageConsumer } from "./kafka/consumer.js";
 import routes from './routes/index.js';
 import './scheduler.js';
 import publicRoutes from './routes/public.routes.js';
@@ -63,6 +64,11 @@ app.use(appErrorHandler);
 app.use(genericErrorHandler);
 app.use(notFound);
 
+
+// Start Kafka consumer with error handling
+startMessageConsumer().catch(error => {
+  console.warn("Kafka consumer initialization failed, but app continues:", error.message);
+});
 
 
 app.listen(port, () => {

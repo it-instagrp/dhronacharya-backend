@@ -19,7 +19,9 @@ const {
   Location,
   Enquiry,
   UserSubscription,
-  SubscriptionPlan
+  SubscriptionPlan,
+  Message, //  ADD THIS LINE
+  Notification // ADD THIS IF NOT ALREADY THERE
 } = db;
 
 // Get all Students
@@ -1402,6 +1404,486 @@ export const bulkUploadStudents = async (req, res) => {
     return res.status(500).json({
       message: "Bulk upload failed",
       error: error.message,
+    });
+  }
+};
+
+// Get all enquiries (Admin only)
+export const getAllEnquiries = async (req, res) => {
+  try {
+    const enquiries = await db.Enquiry.findAll({
+      include: [
+        {
+          model: db.User,
+          as: "Sender",
+          attributes: ["id", "role", "email", "mobile_number", "is_active"],
+          include: [
+            {
+              model: db.Tutor,
+              as: "Tutor",
+              attributes: ["name", "profile_status"],
+              include: [{ model: db.Location, attributes: ["city", "state"] }]
+            },
+            {
+              model: db.Student,
+              as: "Student", 
+              attributes: ["name", "class"],
+              include: [{ model: db.Location, attributes: ["city", "state"] }]
+            }
+          ]
+        },
+        {
+          model: db.User,
+          as: "Receiver",
+          attributes: ["id", "role", "email", "mobile_number", "is_active"],
+          include: [
+            {
+              model: db.Tutor,
+              as: "Tutor",
+              attributes: ["name", "profile_status"],
+              include: [{ model: db.Location, attributes: ["city", "state"] }]
+            },
+            {
+              model: db.Student,
+              as: "Student",
+              attributes: ["name", "class"],
+              include: [{ model: db.Location, attributes: ["city", "state"] }]
+            }
+          ]
+        }
+      ],
+      order: [["created_at", "DESC"]]
+    });
+
+    const formattedEnquiries = enquiries.map((enquiry) => ({
+      id: enquiry.id,
+      subject: enquiry.subject,
+      class: enquiry.class,
+      mode: enquiry.mode,
+      status: enquiry.status,
+      description: enquiry.description,
+      response_message: enquiry.response_message,
+      sender_location: enquiry.sender_location,
+      receiver_location: enquiry.receiver_location,
+      created_at: enquiry.createdAt,
+      updated_at: enquiry.updatedAt,
+      sender: {
+        id: enquiry.Sender.id,
+        role: enquiry.Sender.role,
+        email: enquiry.Sender.email,
+        mobile_number: enquiry.Sender.mobile_number,
+        name: enquiry.Sender.Tutor?.name || enquiry.Sender.Student?.name,
+        profile_status: enquiry.Sender.Tutor?.profile_status || null,
+        location: enquiry.Sender.Tutor?.Location || enquiry.Sender.Student?.Location || null
+      },
+      receiver: {
+        id: enquiry.Receiver.id,
+        role: enquiry.Receiver.role,
+        email: enquiry.Receiver.email,
+        mobile_number: enquiry.Receiver.mobile_number,
+        name: enquiry.Receiver.Tutor?.name || enquiry.Receiver.Student?.name,
+        profile_status: enquiry.Receiver.Tutor?.profile_status || null,
+        location: enquiry.Receiver.Tutor?.Location || enquiry.Receiver.Student?.Location || null
+      }
+    }));
+
+    res.status(200).json({
+      message: "All enquiries fetched successfully",
+      enquiries: formattedEnquiries
+    });
+  } catch (error) {
+    console.error("Get all enquiries error:", error);
+    res.status(500).json({ message: "Failed to fetch enquiries", error: error.message });
+  }
+};
+
+// Get all messages for any enquiry (Admin only)
+export const getAllEnquiryMessages = async (req, res) => {
+  const { enquiry_id } = req.params;
+
+  try {
+    const enquiry = await db.Enquiry.findByPk(enquiry_id);
+    if (!enquiry) {
+      return res.status(404).json({ message: "Enquiry not found" });
+    }
+
+    const messages = await db.Message.findAll({
+      where: { enquiry_id },
+      include: [
+        { 
+          model: db.User, 
+          attributes: ["id", "email", "role", "is_active"] 
+        }
+      ],
+      order: [["created_at", "ASC"]]
+    });
+
+    const formattedMessages = messages.map((message) => ({
+      id: message.id,
+      enquiry_id: message.enquiry_id,
+      sender_id: message.sender_id,
+      content: message.content,
+      created_at: message.created_at,
+      sender: {
+        id: message.User.id,
+        email: message.User.email,
+        role: message.User.role,
+        is_active: message.User.is_active
+      }
+    }));
+
+    res.status(200).json({
+      message: "Messages fetched successfully",
+      enquiry: {
+        id: enquiry.id,
+        subject: enquiry.subject,
+        status: enquiry.status
+      },
+      messages: formattedMessages
+    });
+  } catch (error) {
+    console.error("Get enquiry messages error:", error);
+    res.status(500).json({ message: "Failed to fetch messages", error: error.message });
+  }
+};
+
+// Delete enquiry (Admin only)
+export const deleteEnquiry = async (req, res) => {
+  const { enquiry_id } = req.params;
+
+  try {
+    const enquiry = await db.Enquiry.findByPk(enquiry_id);
+    if (!enquiry) {
+      return res.status(404).json({ message: "Enquiry not found" });
+    }
+
+    // First delete all messages in this enquiry
+    await db.Message.destroy({ where: { enquiry_id } });
+
+    // Then delete the enquiry
+    await enquiry.destroy();
+
+    res.status(200).json({
+      message: "Enquiry and all associated messages deleted successfully"
+    });
+  } catch (error) {
+    console.error("Delete enquiry error:", error);
+    res.status(500).json({ message: "Failed to delete enquiry", error: error.message });
+  }
+};
+
+// Delete specific message (Admin only)
+export const deleteMessage = async (req, res) => {
+  const { message_id } = req.params;
+
+  try {
+    const message = await db.Message.findByPk(message_id);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    await message.destroy();
+
+    res.status(200).json({
+      message: "Message deleted successfully"
+    });
+  } catch (error) {
+    console.error("Delete message error:", error);
+    res.status(500).json({ message: "Failed to delete message", error: error.message });
+  }
+};
+
+// Get enquiry statistics (Admin dashboard)
+export const getEnquiryStats = async (req, res) => {
+  try {
+    const totalEnquiries = await db.Enquiry.count();
+    const pendingEnquiries = await db.Enquiry.count({ where: { status: "pending" } });
+    const acceptedEnquiries = await db.Enquiry.count({ where: { status: "accepted" } });
+    const rejectedEnquiries = await db.Enquiry.count({ where: { status: "rejected" } });
+
+    // Recent enquiries (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const recentEnquiries = await db.Enquiry.count({
+      where: {
+        created_at: {
+          [Op.gte]: sevenDaysAgo
+        }
+      }
+    });
+
+    res.status(200).json({
+      total_enquiries: totalEnquiries,
+      pending_enquiries: pendingEnquiries,
+      accepted_enquiries: acceptedEnquiries,
+      rejected_enquiries: rejectedEnquiries,
+      recent_enquiries: recentEnquiries,
+      stats: {
+        pending_percentage: totalEnquiries > 0 ? ((pendingEnquiries / totalEnquiries) * 100).toFixed(1) : 0,
+        acceptance_rate: totalEnquiries > 0 ? ((acceptedEnquiries / totalEnquiries) * 100).toFixed(1) : 0
+      }
+    });
+  } catch (error) {
+    console.error("Get enquiry stats error:", error);
+    res.status(500).json({ message: "Failed to fetch enquiry statistics", error: error.message });
+  }
+};
+// Get ALL messages from ALL users (Admin only)
+export const getAllMessages = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Build where clause for search
+    let whereClause = {};
+    if (search) {
+      whereClause = {
+        [Op.or]: [
+          { content: { [Op.iLike]: `%${search}%` } }, // Case-insensitive search
+          { '$User.email$': { [Op.iLike]: `%${search}%` } },
+          { '$User.name$': { [Op.iLike]: `%${search}%` } }
+        ]
+      };
+    }
+
+    const { count, rows: messages } = await db.Message.findAndCountAll({
+      where: whereClause,
+      include: [
+        { 
+          model: db.User, 
+          attributes: ["id", "email", "role", "name", "is_active"],
+          include: [
+            {
+              model: db.Student,
+              attributes: ["name", "class"],
+              required: false
+            },
+            {
+              model: db.Tutor,
+              attributes: ["name", "profile_status"],
+              required: false
+            }
+          ]
+        },
+        {
+          model: db.Enquiry,
+          attributes: ["id", "subject", "status", "class"],
+          required: false
+        },
+        {
+          model: db.Conversation,
+          attributes: ["id", "student_id", "tutor_id"],
+          required: false
+        }
+      ],
+      order: [["created_at", "DESC"]],
+      limit: parseInt(limit),
+      offset: offset
+    });
+
+    const formattedMessages = messages.map((message) => ({
+      id: message.id,
+      content: message.content,
+      created_at: message.created_at,
+      updated_at: message.updated_at,
+      enquiry_id: message.enquiry_id,
+      conversation_id: message.conversation_id,
+      sender: {
+        id: message.User.id,
+        email: message.User.email,
+        role: message.User.role,
+        name: message.User.name || message.User.Student?.name || message.User.Tutor?.name,
+        is_active: message.User.is_active,
+        profile_status: message.User.Tutor?.profile_status || null
+      },
+      enquiry: message.Enquiry ? {
+        id: message.Enquiry.id,
+        subject: message.Enquiry.subject,
+        status: message.Enquiry.status,
+        class: message.Enquiry.class
+      } : null,
+      conversation: message.Conversation ? {
+        id: message.Conversation.id,
+        student_id: message.Conversation.student_id,
+        tutor_id: message.Conversation.tutor_id
+      } : null,
+      message_type: message.enquiry_id ? 'enquiry' : message.conversation_id ? 'conversation' : 'direct'
+    }));
+
+    res.status(200).json({
+      message: "All messages fetched successfully",
+      total_messages: count,
+      current_page: parseInt(page),
+      total_pages: Math.ceil(count / limit),
+      messages: formattedMessages
+    });
+  } catch (error) {
+    console.error("Get all messages error:", error);
+    res.status(500).json({ message: "Failed to fetch messages", error: error.message });
+  }
+};
+
+// Get messages by user (Admin only)
+export const getMessagesByUser = async (req, res) => {
+  const { user_id } = req.params;
+  const { page = 1, limit = 50 } = req.query;
+  const offset = (page - 1) * limit;
+
+  try {
+    const user = await db.User.findByPk(user_id, {
+      attributes: ["id", "email", "role", "name", "is_active"]
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { count, rows: messages } = await db.Message.findAndCountAll({
+      where: { sender_id: user_id },
+      include: [
+        {
+          model: db.Enquiry,
+          attributes: ["id", "subject", "status", "class"],
+          required: false
+        },
+        {
+          model: db.Conversation,
+          attributes: ["id", "student_id", "tutor_id"],
+          required: false
+        }
+      ],
+      order: [["created_at", "DESC"]],
+      limit: parseInt(limit),
+      offset: offset
+    });
+
+    const formattedMessages = messages.map((message) => ({
+      id: message.id,
+      content: message.content,
+      created_at: message.created_at,
+      enquiry_id: message.enquiry_id,
+      conversation_id: message.conversation_id,
+      enquiry: message.Enquiry ? {
+        id: message.Enquiry.id,
+        subject: message.Enquiry.subject,
+        status: message.Enquiry.status
+      } : null,
+      conversation: message.Conversation ? {
+        id: message.Conversation.id,
+        student_id: message.Conversation.student_id,
+        tutor_id: message.Conversation.tutor_id
+      } : null,
+      message_type: message.enquiry_id ? 'enquiry' : message.conversation_id ? 'conversation' : 'direct'
+    }));
+
+    res.status(200).json({
+      message: `Messages for user ${user.email} fetched successfully`,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        is_active: user.is_active
+      },
+      total_messages: count,
+      current_page: parseInt(page),
+      total_pages: Math.ceil(count / limit),
+      messages: formattedMessages
+    });
+  } catch (error) {
+    console.error("Get user messages error:", error);
+    res.status(500).json({ message: "Failed to fetch user messages", error: error.message });
+  }
+};
+
+// Get message statistics (Admin dashboard)
+// Get message statistics (Admin dashboard) - CORRECTED VERSION
+export const getMessageStats = async (req, res) => {
+  try {
+    // Basic counts
+    const totalMessages = await db.Message.count();
+    
+    const enquiryMessages = await db.Message.count({ 
+      where: { enquiry_id: { [Op.ne]: null } } 
+    });
+    
+    const conversationMessages = await db.Message.count({ 
+      where: { conversation_id: { [Op.ne]: null } } 
+    });
+    
+    const directMessages = totalMessages - enquiryMessages - conversationMessages;
+
+    // Messages by user role
+    const studentMessages = await db.sequelize.query(
+      `SELECT COUNT(*) FROM messages m 
+       JOIN users u ON m.sender_id = u.id 
+       WHERE u.role = 'student'`,
+      { type: db.sequelize.QueryTypes.SELECT }
+    );
+
+    const tutorMessages = await db.sequelize.query(
+      `SELECT COUNT(*) FROM messages m 
+       JOIN users u ON m.sender_id = u.id 
+       WHERE u.role = 'tutor'`,
+      { type: db.sequelize.QueryTypes.SELECT }
+    );
+
+    // Recent messages (last 24 hours)
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    const recentMessages = await db.Message.count({
+      where: {
+        created_at: {
+          [Op.gte]: twentyFourHoursAgo
+        }
+      }
+    });
+
+    // ✅ FIXED: Top active users with proper GROUP BY
+    const topUsers = await db.sequelize.query(
+      `SELECT 
+        m.sender_id,
+        u.email,
+        u.role,
+        u.name,
+        COUNT(m.id) as message_count
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       GROUP BY m.sender_id, u.email, u.role, u.name
+       ORDER BY message_count DESC
+       LIMIT 10`,
+      { type: db.sequelize.QueryTypes.SELECT }
+    );
+
+    res.status(200).json({
+      total_messages: totalMessages,
+      by_type: {
+        enquiry_messages: enquiryMessages,
+        conversation_messages: conversationMessages,
+        direct_messages: directMessages
+      },
+      by_role: {
+        student_messages: parseInt(studentMessages[0]?.count || 0),
+        tutor_messages: parseInt(tutorMessages[0]?.count || 0)
+      },
+      recent_activity: {
+        last_24_hours: recentMessages
+      },
+      top_active_users: topUsers.map(user => ({
+        user_id: user.sender_id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        message_count: parseInt(user.message_count)
+      }))
+    });
+  } catch (error) {
+    console.error("Get message stats error:", error);
+    res.status(500).json({ 
+      message: "Failed to fetch message statistics", 
+      error: error.message 
     });
   }
 };

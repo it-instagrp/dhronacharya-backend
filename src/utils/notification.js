@@ -8,13 +8,13 @@ export const sendNotification = async ({ type, recipient, subject, template_name
 
   const template = notificationTemplates[template_name]?.[type];
 
-  // ✅ Use template if exists
+  // Use template if exists
   if (template) {
     if (params?.values && !Array.isArray(params.values)) {
       params.values = [params.values];
     }
 
-    // ✅ Fix undefined name fallback
+    // Fix undefined name fallback
     const filledParams = {
       ...params,
       name: params?.name || 'User',
@@ -22,7 +22,7 @@ export const sendNotification = async ({ type, recipient, subject, template_name
 
     message = template(filledParams);
   } else {
-    // ✅ Fallback formatting logic
+    // Fallback formatting logic
     if (!params?.message) {
       throw new Error(`No message content provided for template "${template_name}"`);
     }
@@ -39,8 +39,8 @@ export const sendNotification = async ({ type, recipient, subject, template_name
     }
   }
 
-  // 📨 Dispatch via selected type
-  // 📨 Dispatch via selected type
+  // Dispatch via selected type
+  // Dispatch via selected type
 switch (type) {
   case 'email':
     return sendEmail(recipient, subject, message);
@@ -49,7 +49,7 @@ switch (type) {
     return sendSMS(recipient, message);
 
   case 'whatsapp': {
-    // ✅ Ensure proper WhatsApp format
+    // Ensure proper WhatsApp format
     let to = recipient.trim();
 
     // If number doesn’t start with +, assume India (+91)

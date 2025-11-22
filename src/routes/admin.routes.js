@@ -100,7 +100,15 @@ import {
   getStudentEnquiries,
   deleteStudentEnquiry,
   createStudentByAdmin,
-  bulkUploadStudents
+  bulkUploadStudents,
+   getAllEnquiries,
+  getAllEnquiryMessages,
+  deleteEnquiry,
+  deleteMessage,
+  getEnquiryStats,
+   getAllMessages,
+  getMessagesByUser,
+  getMessageStats
 } from '../controllers/admin.controller.js';
 
 import multer from 'multer';
@@ -162,5 +170,15 @@ router.delete("/enquiries/:enquiryId", deleteStudentEnquiry);
 // Students create/bulk
 router.post('/students', createStudentByAdmin);
 router.post('/students/bulk-upload', upload.single('file'), bulkUploadStudents);
+
+// Enquiry Management (Admin only)
+router.get('/enquiries', getAllEnquiries); // Get all enquiries
+router.get('/enquiries/stats', getEnquiryStats); // Get enquiry statistics
+router.get('/enquiries/:enquiry_id/messages', getAllEnquiryMessages); // Get messages for any enquiry
+router.delete('/enquiries/:enquiry_id', deleteEnquiry); // Delete enquiry and its messages
+router.delete('/messages/:message_id', deleteMessage); // Delete specific message
+router.get('/messages', getAllMessages); // Get ALL messages from ALL users
+router.get('/messages/stats', getMessageStats); // Get message statistics
+router.get('/users/:user_id/messages', getMessagesByUser); // Get messages by specific user
 
 export default router;

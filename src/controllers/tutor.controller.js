@@ -3,7 +3,7 @@
 import db from '../models/index.js';
 const { User, Tutor } = db;
 
-// ✅ Get All Approved Tutors
+//  Get All Approved Tutors
 export const getAllTutors = async (req, res) => {
   try {
     const tutors = await User.findAll({
