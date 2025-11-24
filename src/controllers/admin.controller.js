@@ -1630,19 +1630,17 @@ export const getEnquiryStats = async (req, res) => {
   }
 };
 // Get ALL messages from ALL users (Admin only)
+// Simplified version - Get ALL messages from ALL users
 export const getAllMessages = async (req, res) => {
   try {
     const { page = 1, limit = 50, search } = req.query;
     const offset = (page - 1) * limit;
 
-    // Build where clause for search
     let whereClause = {};
     if (search) {
       whereClause = {
         [Op.or]: [
-          { content: { [Op.iLike]: `%${search}%` } }, // Case-insensitive search
-          { '$User.email$': { [Op.iLike]: `%${search}%` } },
-          { '$User.name$': { [Op.iLike]: `%${search}%` } }
+          { content: { [Op.iLike]: `%${search}%` } }
         ]
       };
     }
@@ -1651,29 +1649,12 @@ export const getAllMessages = async (req, res) => {
       where: whereClause,
       include: [
         { 
-          model: db.User, 
-          attributes: ["id", "email", "role", "name", "is_active"],
-          include: [
-            {
-              model: db.Student,
-              attributes: ["name", "class"],
-              required: false
-            },
-            {
-              model: db.Tutor,
-              attributes: ["name", "profile_status"],
-              required: false
-            }
-          ]
+          model: db.User,
+          attributes: ["id", "email", "role", "name", "is_active"]
         },
         {
           model: db.Enquiry,
-          attributes: ["id", "subject", "status", "class"],
-          required: false
-        },
-        {
-          model: db.Conversation,
-          attributes: ["id", "student_id", "tutor_id"],
+          attributes: ["id", "subject", "status", "class", "sender_id", "receiver_id"],
           required: false
         }
       ],
@@ -1682,34 +1663,83 @@ export const getAllMessages = async (req, res) => {
       offset: offset
     });
 
-    const formattedMessages = messages.map((message) => ({
-      id: message.id,
-      content: message.content,
-      created_at: message.created_at,
-      updated_at: message.updated_at,
-      enquiry_id: message.enquiry_id,
-      conversation_id: message.conversation_id,
-      sender: {
-        id: message.User.id,
-        email: message.User.email,
-        role: message.User.role,
-        name: message.User.name || message.User.Student?.name || message.User.Tutor?.name,
-        is_active: message.User.is_active,
-        profile_status: message.User.Tutor?.profile_status || null
-      },
-      enquiry: message.Enquiry ? {
-        id: message.Enquiry.id,
-        subject: message.Enquiry.subject,
-        status: message.Enquiry.status,
-        class: message.Enquiry.class
-      } : null,
-      conversation: message.Conversation ? {
-        id: message.Conversation.id,
-        student_id: message.Conversation.student_id,
-        tutor_id: message.Conversation.tutor_id
-      } : null,
-      message_type: message.enquiry_id ? 'enquiry' : message.conversation_id ? 'conversation' : 'direct'
-    }));
+    // Get user details for senders and receivers
+    const userIds = new Set();
+    messages.forEach(message => {
+      userIds.add(message.sender_id);
+      if (message.Enquiry) {
+        userIds.add(message.Enquiry.sender_id);
+        userIds.add(message.Enquiry.receiver_id);
+      }
+    });
+
+    const users = await db.User.findAll({
+      where: { id: Array.from(userIds) },
+      include: [
+        { model: db.Student, attributes: ["name"], required: false },
+        { model: db.Tutor, attributes: ["name", "profile_status"], required: false }
+      ]
+    });
+
+    const userMap = {};
+    users.forEach(user => {
+      userMap[user.id] = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: user.name || user.Student?.name || user.Tutor?.name,
+        is_active: user.is_active,
+        profile_status: user.Tutor?.profile_status || null
+      };
+    });
+
+    // Format messages
+    const formattedMessages = messages.map((message) => {
+      const sender = userMap[message.sender_id];
+      const enquiry = message.Enquiry;
+      
+      let connectionContext = null;
+      let messageDirection = 'unknown';
+
+      if (enquiry) {
+        const senderUser = userMap[enquiry.sender_id];
+        const receiverUser = userMap[enquiry.receiver_id];
+        
+        if (senderUser && receiverUser) {
+          if (message.sender_id === enquiry.sender_id) {
+            // Student sent to Tutor
+            messageDirection = 'student_to_tutor';
+            connectionContext = {
+              from: senderUser,
+              to: receiverUser
+            };
+          } else if (message.sender_id === enquiry.receiver_id) {
+            // Tutor sent to Student
+            messageDirection = 'tutor_to_student';
+            connectionContext = {
+              from: senderUser,
+              to: senderUser // The original student sender
+            };
+          }
+        }
+      }
+
+      return {
+        id: message.id,
+        content: message.content,
+        created_at: message.created_at,
+        sender: sender,
+        connection_context: connectionContext,
+        message_direction: messageDirection,
+        enquiry: enquiry ? {
+          id: enquiry.id,
+          subject: enquiry.subject,
+          status: enquiry.status,
+          class: enquiry.class
+        } : null,
+        message_type: message.enquiry_id ? 'enquiry' : 'direct'
+      };
+    });
 
     res.status(200).json({
       message: "All messages fetched successfully",
@@ -1723,7 +1753,6 @@ export const getAllMessages = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch messages", error: error.message });
   }
 };
-
 // Get messages by user (Admin only)
 export const getMessagesByUser = async (req, res) => {
   const { user_id } = req.params;

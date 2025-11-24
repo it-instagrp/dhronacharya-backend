@@ -7,7 +7,7 @@ let isProducerConnected = false;
 if (kafka) {
   producer = kafka.producer({
     retry: {
-      retries: 2
+      retries: 1
     }
   });
 
@@ -15,9 +15,9 @@ if (kafka) {
     try {
       await producer.connect();
       isProducerConnected = true;
-      console.log("✅ Kafka producer connected");
+      console.log("Kafka producer connected");
     } catch (error) {
-      console.warn("⚠️ Kafka producer connection failed");
+      console.warn("Kafka producer connection failed");
       isProducerConnected = false;
     }
   };
@@ -28,7 +28,8 @@ if (kafka) {
 export const sendKafkaMessage = async (topic, message) => {
   // Skip if Kafka is not configured or producer not connected
   if (!kafka || !producer || !isProducerConnected) {
-    return; // Silently skip
+    console.log("Kafka not available, skipping message");
+    return;
   }
   
   try {
@@ -36,7 +37,9 @@ export const sendKafkaMessage = async (topic, message) => {
       topic,
       messages: [{ value: JSON.stringify(message) }]
     });
+    console.log("Message sent to Kafka topic:", topic);
+    console.log("Message content:", message);
   } catch (error) {
-    // Silently fail - don't log to reduce noise
+    console.error("Failed to send message to Kafka:", error.message);
   }
 };
