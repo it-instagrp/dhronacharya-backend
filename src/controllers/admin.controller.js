@@ -1249,6 +1249,20 @@ export const bulkUploadStudents = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    // ✅ Check file size (10MB limit)
+    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (req.file.size > maxFileSize) {
+      // Cleanup the uploaded file
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ 
+        message: "File size too large", 
+        details: `Maximum file size is 10MB. Your file is ${(req.file.size / (1024 * 1024)).toFixed(2)}MB.` 
+      });
+    }
+
+    // ✅ Check number of records (500 records limit)
+    const maxRecords = 500;
+    
     const filePath = req.file.path;
     const originalName = req.file.originalname.toLowerCase();
     let students = [];
@@ -1271,7 +1285,29 @@ export const bulkUploadStudents = async (req, res) => {
           .on("error", reject);
       });
     } else {
+      // Cleanup the uploaded file
+      fs.unlink(filePath, () => {});
       return res.status(400).json({ message: "Unsupported file format. Use Excel or CSV." });
+    }
+
+    // ✅ Check if file has too many records
+    if (students.length > maxRecords) {
+      // Cleanup the uploaded file
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({ 
+        message: "Too many records in file", 
+        details: `Maximum ${maxRecords} records allowed. Your file has ${students.length} records.` 
+      });
+    }
+
+    // ✅ Check if file is empty
+    if (students.length === 0) {
+      // Cleanup the uploaded file
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({ 
+        message: "File is empty", 
+        details: "The uploaded file contains no data." 
+      });
     }
 
     // Helper functions
@@ -1305,52 +1341,123 @@ export const bulkUploadStudents = async (req, res) => {
     let skippedCount = 0;
     let updatedCount = 0;
 
-    for (const row of students) {
-      try {
-        let finalLocationId = row.location_id || null;
+    console.log(`Processing ${students.length} students...`);
 
-        // Handle Google Place ID
-        if (row.place_id) {
-          let location = await db.Location.findOne({ where: { place_id: row.place_id } });
-          if (!location) {
-            const details = await getPlaceDetailsFromGoogle(row.place_id);
-            location = await db.Location.create(details);
-          }
-          finalLocationId = location.id;
+    for (const [index, row] of students.entries()) {
+      try {
+        console.log(`Processing ${index + 1}/${students.length}: ${row.name} (${row.email})`);
+
+        // ✅ FIX: Convert mobile_number to string
+        const mobileNumber = row.mobile_number ? row.mobile_number.toString() : null;
+
+        // Validate required fields
+        if (!row.email || !mobileNumber) {
+          console.log(`❌ Skipping ${row.name}: Missing email or mobile number`);
+          skippedCount++;
+          continue;
         }
 
-        // Check if user already exists (by email OR mobile_number)
+        // ✅ Handle location using city, state, country
+        let finalLocationId = null;
+
+        if (row.city && row.state) {
+          try {
+            // Create location based on city, state, country
+            const locationData = {
+              city: row.city.trim(),
+              state: row.state.trim(),
+              country: row.country || 'India',
+              pincode: row.pincode ? row.pincode.toString() : null,
+              latitude: null,
+              longitude: null
+            };
+
+            // Try to find existing location first
+            let location = await db.Location.findOne({
+              where: {
+                city: locationData.city,
+                state: locationData.state,
+                country: locationData.country
+              }
+            });
+
+            if (!location) {
+              location = await db.Location.create(locationData);
+              console.log(`📍 Created new location: ${locationData.city}, ${locationData.state}, ${locationData.country}`);
+            } else {
+              console.log(`📍 Found existing location: ${locationData.city}, ${locationData.state}, ${locationData.country}`);
+            }
+            finalLocationId = location.id;
+          } catch (locationError) {
+            console.error(`📍 Error creating location for ${row.city}, ${row.state}:`, locationError.message);
+          }
+        }
+
+        // ✅ FIXED: Check if user already exists - convert mobile_number to string in query
         let existingUser = await db.User.findOne({
           where: {
             [Op.or]: [
               { email: row.email },
-              { mobile_number: row.mobile_number },
-            ],
-          },
+              { mobile_number: mobileNumber } // Now comparing string to string
+            ]
+          }
         });
 
         let user;
+        let userWasCreated = false;
+        let userWasUpdated = false;
+
         if (existingUser) {
           user = existingUser;
-          updatedCount++;
+          
+          // Check if this is a conflict (same mobile but different email or vice versa)
+          if (existingUser.email !== row.email && existingUser.mobile_number === mobileNumber) {
+            console.log(`⚠️ Mobile conflict: ${mobileNumber} exists with email ${existingUser.email}, skipping ${row.email}`);
+            skippedCount++;
+            continue;
+          }
+          
+          if (existingUser.mobile_number !== mobileNumber && existingUser.email === row.email) {
+            console.log(`⚠️ Email conflict: ${row.email} exists with mobile ${existingUser.mobile_number}, skipping ${mobileNumber}`);
+            skippedCount++;
+            continue;
+          }
+
+          // Update existing user if needed
+          if (existingUser.name !== row.name || existingUser.mobile_number !== mobileNumber) {
+            await existingUser.update({
+              name: row.name,
+              mobile_number: mobileNumber, // Use the converted string
+              is_active: true,
+            });
+            userWasUpdated = true;
+            console.log(`Updated user: ${row.email}`);
+          } else {
+            console.log(`User exists, no changes needed: ${row.email}`);
+          }
         } else {
+          // Create new user
           user = await db.User.create({
             name: row.name,
             email: row.email,
-            mobile_number: row.mobile_number,
+            mobile_number: mobileNumber, // Use the converted string
             role: "student",
             password_hash: hashedPassword,
             is_active: true,
           });
+          userWasCreated = true;
           createdCount++;
+          console.log(`Created new user: ${row.email}`);
         }
 
-        // ✅ Check if student already exists
+        // ✅ Check if student profile already exists
         const existingStudent = await db.Student.findOne({ where: { user_id: user.id } });
+        
         if (existingStudent) {
+          // Update existing student profile
           await existingStudent.update({
-            name: row.name || existingStudent.name,
-            class: row.class || existingStudent.class,
+            name: row.name,
+            class: row.class,
             subjects: normalizeArray(row.subjects),
             class_modes: normalizeArray(row.class_modes),
             languages: normalizeLanguages(row.languages),
@@ -1364,7 +1471,13 @@ export const bulkUploadStudents = async (req, res) => {
             profile_photo: row.profile_photo,
             location_id: finalLocationId,
           });
+          
+          if (userWasUpdated) {
+            updatedCount++;
+            console.log(`Updated student profile: ${row.email}`);
+          }
         } else {
+          // Create new student profile
           await db.Student.create({
             user_id: user.id,
             name: row.name,
@@ -1382,24 +1495,43 @@ export const bulkUploadStudents = async (req, res) => {
             profile_photo: row.profile_photo,
             location_id: finalLocationId,
           });
+          
+          // Only count as created if both user and student profile are new
+          if (!userWasCreated) {
+            updatedCount++;
+            console.log(`Created student profile for existing user: ${row.email}`);
+          } else {
+            console.log(`Created new student with profile: ${row.email}`);
+          }
         }
+
       } catch (err) {
-        console.error(`Skipped student ${row.name} due to:`, err.message);
+        console.error(`❌ Skipped student ${row.name} (${row.email}) due to:`, err.message);
         skippedCount++;
-        continue; // continue processing others
+        continue;
       }
     }
 
-    fs.unlink(filePath, () => {}); // cleanup file
+    // Cleanup file
+    fs.unlink(filePath, () => {});
 
     return res.status(200).json({
       message: "Bulk upload completed",
-      createdCount,
-      updatedCount,
-      skippedCount,
+      summary: {
+        totalRecords: students.length,
+        createdCount,
+        updatedCount,
+        skippedCount,
+        successRate: `${(((createdCount + updatedCount) / students.length) * 100).toFixed(1)}%`
+      },
       defaultPassword,
     });
   } catch (error) {
+    // Cleanup file in case of error
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, () => {});
+    }
+    
     console.error("Bulk upload student error:", error);
     return res.status(500).json({
       message: "Bulk upload failed",
