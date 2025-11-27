@@ -883,122 +883,266 @@ export const createTutorByAdmin = async (req, res) => {
 export const bulkUploadTutors = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
     const filePath = req.file.path;
     const originalName = req.file.originalname.toLowerCase();
     let tutors = [];
 
-    // 1️Excel (.xlsx / .xls)
-    if (originalName.endsWith('.xlsx') || originalName.endsWith('.xls')) {
+    // Read Excel / CSV
+    if (originalName.endsWith(".xlsx") || originalName.endsWith(".xls")) {
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       tutors = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    }
-    // 2️CSV
-    else if (originalName.endsWith('.csv')) {
+    } else if (originalName.endsWith(".csv")) {
       const rows = [];
       await new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
           .pipe(csv())
-          .on('data', (row) => rows.push(row))
-          .on('end', () => {
+          .on("data", (row) => rows.push(row))
+          .on("end", () => {
             tutors = rows;
             resolve();
           })
-          .on('error', reject);
+          .on("error", reject);
       });
-    }
-    // 3️⃣ Unsupported file type
-    else {
+    } else {
+      fs.unlink(filePath, () => {});
       return res
         .status(400)
-        .json({ message: 'Unsupported file format. Use CSV or Excel.' });
+        .json({ message: "Unsupported file format. Use CSV or Excel." });
     }
 
-    // 🔧 Normalize helper
+    // ================================
+    // STRICT FILE FORMAT VALIDATION
+    // ================================
+    if (!tutors.length) {
+      return res.status(400).json({
+        message: "Uploaded file is empty or has no readable rows.",
+      });
+    }
+
+    const requiredColumns = [
+      "name",
+      "email",
+      "mobile_number",
+      "subjects",
+      "classes",
+      "degrees",
+      "languages",
+      "experience",
+      "pricing_per_hour",
+      "city",
+      "state"
+    ];
+
+    const fileColumns = Object.keys(tutors[0]).map((c) =>
+      c.trim().toLowerCase()
+    );
+
+    const missingColumns = requiredColumns.filter(
+      (col) => !fileColumns.includes(col)
+    );
+
+    if (missingColumns.length > 0) {
+      return res.status(400).json({
+        message: "Invalid file format. Missing required columns.",
+        missingColumns,
+        expectedColumns: requiredColumns,
+      });
+    }
+
+    // ================================
+    // Helpers
+    // ================================
     const normalizeArray = (val) => {
       if (!val) return [];
       if (Array.isArray(val)) return val;
       return String(val)
-        .split(',')
+        .split(",")
         .map((s) => s.trim())
-        .filter((s) => s.length > 0);
+        .filter(Boolean);
     };
 
     let createdCount = 0;
-    const defaultPassword = 'Tutor@123';
+    let updatedCount = 0;
+    let skippedCount = 0;
+
+    const defaultPassword = "Tutor@123";
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
+    // ================================
+    // Process each tutor row
+    // ================================
     for (const row of tutors) {
-      // Handle location
-      let location_id = null;
-      if (row.place_id) {
-        const locationDetails = await getPlaceDetailsFromGoogle(row.place_id);
-        const [loc] = await db.Location.upsert(
-          { place_id: row.place_id, ...locationDetails },
-          { returning: true }
-        );
-        location_id = loc.id;
-      } else if (row.location_id) {
-        location_id = row.location_id; // direct id
+      try {
+        const email = row.email?.toLowerCase();
+        const mobile = row.mobile_number
+          ? row.mobile_number.toString()
+          : null;
+
+        if (!email || !mobile) {
+          skippedCount++;
+          continue;
+        }
+
+        // ========= STRICT DUPLICATE VALIDATION ==========
+        const userByEmail = await db.User.findOne({ where: { email } });
+        const userByMobile = await db.User.findOne({
+          where: { mobile_number: mobile },
+        });
+
+        // Case 1: BOTH email & mobile belong to two different users → skip
+        if (
+          userByEmail &&
+          userByMobile &&
+          userByEmail.id !== userByMobile.id
+        ) {
+          skippedCount++;
+          continue;
+        }
+
+        let user;
+        let userCreated = false;
+
+        // Case 2: If email OR mobile exists → use that user
+        user = userByEmail || userByMobile;
+
+        if (!user) {
+          // Case 3: Create new parent user
+          user = await db.User.create({
+            name: row.name,
+            email,
+            mobile_number: mobile,
+            role: "tutor",
+            password_hash: hashedPassword,
+            is_active: true,
+          });
+
+          createdCount++;
+          userCreated = true;
+        } else {
+          // Case 4: Update user only if changed
+          let needUpdate = false;
+
+          if (user.name !== row.name || user.mobile_number !== mobile)
+            needUpdate = true;
+
+          if (needUpdate) {
+            await user.update({
+              name: row.name,
+              mobile_number: mobile,
+              is_active: true,
+            });
+            updatedCount++;
+          }
+        }
+
+        // ========= LOCATION HANDLING ==========
+        let finalLocationId = null;
+
+        if (row.place_id) {
+          const locationDetails = await getPlaceDetailsFromGoogle(
+            row.place_id
+          );
+          const [loc] = await db.Location.upsert(
+            { place_id: row.place_id, ...locationDetails },
+            { returning: true }
+          );
+          finalLocationId = loc.id;
+        } else if (row.city && row.state) {
+          const locationData = {
+            city: row.city.trim(),
+            state: row.state.trim(),
+            country: row.country || "India",
+            pincode: row.pincode ? row.pincode.toString() : null,
+          };
+
+          let location = await db.Location.findOne({
+            where: {
+              city: locationData.city,
+              state: locationData.state,
+              country: locationData.country,
+            },
+          });
+
+          if (!location) {
+            location = await db.Location.create(locationData);
+          }
+
+          finalLocationId = location.id;
+        }
+
+        // ========= TUTOR RECORD ==========
+        const existingTutor = await db.Tutor.findOne({
+          where: { user_id: user.id },
+        });
+
+        if (existingTutor) {
+          await existingTutor.update({
+            name: row.name,
+            subjects: normalizeArray(row.subjects),
+            classes: normalizeArray(row.classes),
+            degrees: normalizeArray(row.degrees),
+            profile_status:
+              row.profile_status || existingTutor.profile_status,
+            profile_photo: row.profile_photo,
+            languages: normalizeArray(row.languages),
+            experience: row.experience,
+            pricing_per_hour: row.pricing_per_hour,
+            introduction_text: row.introduction_text,
+            teaching_modes: normalizeArray(row.teaching_modes),
+            introduction_video: row.introduction_video,
+            documents: normalizeArray(row.documents),
+            location_id: finalLocationId,
+          });
+
+          updatedCount++;
+        } else {
+          await db.Tutor.create({
+            user_id: user.id,
+            name: row.name,
+            subjects: normalizeArray(row.subjects),
+            classes: normalizeArray(row.classes),
+            degrees: normalizeArray(row.degrees),
+            profile_status: row.profile_status || "approved",
+            profile_photo: row.profile_photo,
+            languages: normalizeArray(row.languages),
+            experience: row.experience,
+            pricing_per_hour: row.pricing_per_hour,
+            introduction_text: row.introduction_text,
+            teaching_modes: normalizeArray(row.teaching_modes),
+            introduction_video: row.introduction_video,
+            documents: normalizeArray(row.documents),
+            location_id: finalLocationId,
+          });
+
+          if (!userCreated) updatedCount++;
+        }
+      } catch (err) {
+        skippedCount++;
+        continue;
       }
-
-      // Create User
-      const [user] = await db.User.findOrCreate({
-        where: { email: row.email },
-        defaults: {
-          name: row.name,
-          email: row.email,
-          mobile_number: row.mobile_number,
-          role: 'tutor',
-          password_hash: hashedPassword,
-          is_active: true,
-        },
-      });
-
-      // Create Tutor
-      const [tutor, tutorCreated] = await db.Tutor.findOrCreate({
-        where: { user_id: user.id },
-        defaults: {
-          name: row.name,
-          subjects: normalizeArray(row.subjects),
-          classes: normalizeArray(row.classes),
-          degrees: normalizeArray(row.degrees),
-          profile_status: row.profile_status || 'approved',
-          profile_photo: row.profile_photo,
-          languages: normalizeArray(row.languages),
-          experience: row.experience,
-          pricing_per_hour: row.pricing_per_hour,
-          introduction_text: row.introduction_text,
-          teaching_modes: normalizeArray(row.teaching_modes),
-          introduction_video: row.introduction_video,
-          documents: normalizeArray(row.documents),
-          location_id, // added
-        },
-      });
-
-      if (tutorCreated) createdCount++;
     }
 
-    //  Cleanup
-    fs.unlink(filePath, (err) => {
-      if (err) console.error('Failed to delete temp file:', err);
-    });
+    fs.unlink(filePath, () => {});
 
     return res.json({
-      message: 'Bulk tutors uploaded successfully',
-      count: createdCount,
+      message: "Tutor bulk upload processed successfully",
+      createdCount,
+      updatedCount,
+      skippedCount,
       defaultPassword,
     });
   } catch (error) {
-    console.error('Bulk upload error:', error);
-    return res
-      .status(500)
-      .json({ message: 'Bulk upload failed', error: error.message });
+    return res.status(500).json({
+      message: "Bulk upload failed",
+      error: error.message,
+    });
   }
 };
+
 
 export const getStudentEnquiries = async (req, res) => {
   try {
@@ -1249,25 +1393,23 @@ export const bulkUploadStudents = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // ✅ Check file size (10MB limit)
-    const maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+    // ✅ Validate file size (10MB max)
+    const maxFileSize = 10 * 1024 * 1024;
     if (req.file.size > maxFileSize) {
-      // Cleanup the uploaded file
       fs.unlink(req.file.path, () => {});
-      return res.status(400).json({ 
-        message: "File size too large", 
-        details: `Maximum file size is 10MB. Your file is ${(req.file.size / (1024 * 1024)).toFixed(2)}MB.` 
+      return res.status(400).json({
+        message: "File size too large",
+        details: `Maximum file size is 10MB. Your file is ${(req.file.size / (1024 * 1024)).toFixed(2)}MB.`
       });
     }
 
-    // ✅ Check number of records (500 records limit)
-    const maxRecords = 500;
-    
     const filePath = req.file.path;
     const originalName = req.file.originalname.toLowerCase();
     let students = [];
 
-    // Read Excel or CSV
+    // ============================
+    // READ FILE (Excel / CSV)
+    // ============================
     if (originalName.endsWith(".xlsx") || originalName.endsWith(".xls")) {
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
@@ -1285,176 +1427,214 @@ export const bulkUploadStudents = async (req, res) => {
           .on("error", reject);
       });
     } else {
-      // Cleanup the uploaded file
       fs.unlink(filePath, () => {});
-      return res.status(400).json({ message: "Unsupported file format. Use Excel or CSV." });
+      return res.status(400).json({ message: "Unsupported file format. Upload CSV or Excel." });
     }
 
-    // ✅ Check if file has too many records
-    if (students.length > maxRecords) {
-      // Cleanup the uploaded file
-      fs.unlink(filePath, () => {});
-      return res.status(400).json({ 
-        message: "Too many records in file", 
-        details: `Maximum ${maxRecords} records allowed. Your file has ${students.length} records.` 
-      });
-    }
-
-    // ✅ Check if file is empty
+    // ============================
+    // EMPTY FILE VALIDATION
+    // ============================
     if (students.length === 0) {
-      // Cleanup the uploaded file
       fs.unlink(filePath, () => {});
-      return res.status(400).json({ 
-        message: "File is empty", 
-        details: "The uploaded file contains no data." 
+      return res.status(400).json({
+        message: "File is empty",
+        details: "The uploaded file contains no data."
       });
     }
 
-    // Helper functions
+    // ============================
+    // REQUIRED COLUMNS VALIDATION
+    // ============================
+    const requiredColumns = [
+      "name",
+      "email",
+      "mobile_number",
+      "class",
+      "subjects",
+      "class_modes",
+      "languages",
+      "school_name",
+      "sms_alerts",
+      "board",
+      "availability",
+      "start_timeline",
+      "tutor_gender_preference",
+      "hourly_charges",
+      "city",
+      "state",
+      "country",
+      "pincode"
+    ];
+
+    const uploadedColumns = Object.keys(students[0]).map(c => c.trim().toLowerCase());
+
+    const missingColumns = requiredColumns.filter(
+      col => !uploadedColumns.includes(col.toLowerCase())
+    );
+
+    const extraColumns = uploadedColumns.filter(
+      col => !requiredColumns.includes(col.toLowerCase())
+    );
+
+    if (missingColumns.length > 0) {
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({
+        message: "Invalid Excel format",
+        missingColumns,
+        details: `Your Excel file is missing: ${missingColumns.join(", ")}`
+      });
+    }
+
+    if (extraColumns.length > 0) {
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({
+        message: "Invalid columns found",
+        extraColumns,
+        details: `Remove extra fields: ${extraColumns.join(", ")}`
+      });
+    }
+
+    // ============================
+    // LIMIT RECORD COUNT
+    // ============================
+    const maxRecords = 500;
+    if (students.length > maxRecords) {
+      fs.unlink(filePath, () => {});
+      return res.status(400).json({
+        message: "Too many records",
+        details: `Maximum ${maxRecords} allowed. File contains ${students.length}.`
+      });
+    }
+
+    // ============================
+    // HELPERS
+    // ============================
     const normalizeArray = (val) => {
       if (!val) return [];
       if (Array.isArray(val)) return val;
-      if (typeof val === "string")
-        return val.split(",").map((s) => s.trim()).filter(Boolean);
-      return [];
+      return String(val).split(",").map(s => s.trim()).filter(Boolean);
     };
 
     const normalizeLanguages = (val) => {
       if (!val) return [];
       if (Array.isArray(val)) {
-        return val.map((v) =>
+        return val.map(v =>
           typeof v === "string" ? { language: v, proficiency: "Unknown" } : v
         );
       }
-      if (typeof val === "string") {
-        return val.split(",").map((lang) => ({
-          language: lang.trim(),
-          proficiency: "Unknown",
-        }));
-      }
-      return [];
+      return String(val).split(",").map(lang => ({
+        language: lang.trim(),
+        proficiency: "Unknown",
+      }));
     };
 
     const defaultPassword = "Student@123";
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
     let createdCount = 0;
-    let skippedCount = 0;
     let updatedCount = 0;
+    let skippedCount = 0;
 
-    console.log(`Processing ${students.length} students...`);
-
-    for (const [index, row] of students.entries()) {
+    // ============================
+    // PROCESS STUDENTS
+    // ============================
+    for (const row of students) {
       try {
-        console.log(`Processing ${index + 1}/${students.length}: ${row.name} (${row.email})`);
+        const mobile = row.mobile_number ? row.mobile_number.toString() : null;
 
-        // ✅ FIX: Convert mobile_number to string
-        const mobileNumber = row.mobile_number ? row.mobile_number.toString() : null;
-
-        // Validate required fields
-        if (!row.email || !mobileNumber) {
-          console.log(`❌ Skipping ${row.name}: Missing email or mobile number`);
+        if (!row.email || !mobile) {
           skippedCount++;
           continue;
         }
 
-        // ✅ Handle location using city, state, country
-        let finalLocationId = null;
-
-        if (row.city && row.state) {
-          try {
-            // Create location based on city, state, country
-            const locationData = {
-              city: row.city.trim(),
-              state: row.state.trim(),
-              country: row.country || 'India',
-              pincode: row.pincode ? row.pincode.toString() : null,
-              latitude: null,
-              longitude: null
-            };
-
-            // Try to find existing location first
-            let location = await db.Location.findOne({
-              where: {
-                city: locationData.city,
-                state: locationData.state,
-                country: locationData.country
-              }
-            });
-
-            if (!location) {
-              location = await db.Location.create(locationData);
-              console.log(`📍 Created new location: ${locationData.city}, ${locationData.state}, ${locationData.country}`);
-            } else {
-              console.log(`📍 Found existing location: ${locationData.city}, ${locationData.state}, ${locationData.country}`);
-            }
-            finalLocationId = location.id;
-          } catch (locationError) {
-            console.error(`📍 Error creating location for ${row.city}, ${row.state}:`, locationError.message);
-          }
-        }
-
-        // ✅ FIXED: Check if user already exists - convert mobile_number to string in query
+        // ============================
+        // USER VALIDATION (NO DUPLICATE EMAIL/MOBILE)
+        // ============================
         let existingUser = await db.User.findOne({
           where: {
             [Op.or]: [
               { email: row.email },
-              { mobile_number: mobileNumber } // Now comparing string to string
+              { mobile_number: mobile }
             ]
           }
         });
 
         let user;
-        let userWasCreated = false;
-        let userWasUpdated = false;
+        let userCreated = false;
+        let userUpdated = false;
 
+        // Duplicate conflict checks
         if (existingUser) {
-          user = existingUser;
-          
-          // Check if this is a conflict (same mobile but different email or vice versa)
-          if (existingUser.email !== row.email && existingUser.mobile_number === mobileNumber) {
-            console.log(`⚠️ Mobile conflict: ${mobileNumber} exists with email ${existingUser.email}, skipping ${row.email}`);
+          if (existingUser.email !== row.email && existingUser.mobile_number === mobile) {
             skippedCount++;
             continue;
           }
-          
-          if (existingUser.mobile_number !== mobileNumber && existingUser.email === row.email) {
-            console.log(`⚠️ Email conflict: ${row.email} exists with mobile ${existingUser.mobile_number}, skipping ${mobileNumber}`);
+          if (existingUser.mobile_number !== mobile && existingUser.email === row.email) {
             skippedCount++;
             continue;
           }
 
-          // Update existing user if needed
-          if (existingUser.name !== row.name || existingUser.mobile_number !== mobileNumber) {
+          // Update user
+          if (existingUser.name !== row.name || existingUser.mobile_number !== mobile) {
             await existingUser.update({
               name: row.name,
-              mobile_number: mobileNumber, // Use the converted string
+              mobile_number: mobile,
               is_active: true,
             });
-            userWasUpdated = true;
-            console.log(`Updated user: ${row.email}`);
-          } else {
-            console.log(`User exists, no changes needed: ${row.email}`);
+            userUpdated = true;
           }
+
+          user = existingUser;
         } else {
           // Create new user
           user = await db.User.create({
             name: row.name,
             email: row.email,
-            mobile_number: mobileNumber, // Use the converted string
+            mobile_number: mobile,
             role: "student",
             password_hash: hashedPassword,
             is_active: true,
           });
-          userWasCreated = true;
           createdCount++;
-          console.log(`Created new user: ${row.email}`);
+          userCreated = true;
         }
 
-        // ✅ Check if student profile already exists
-        const existingStudent = await db.Student.findOne({ where: { user_id: user.id } });
-        
+        // ============================
+        // LOCATION HANDLING
+        // ============================
+        let finalLocationId = null;
+
+        if (row.city && row.state) {
+          let location = await db.Location.findOne({
+            where: {
+              city: row.city.trim(),
+              state: row.state.trim(),
+              country: row.country || "India",
+            }
+          });
+
+          if (!location) {
+            location = await db.Location.create({
+              city: row.city.trim(),
+              state: row.state.trim(),
+              country: row.country || "India",
+              pincode: row.pincode ? row.pincode.toString() : null,
+              latitude: null,
+              longitude: null
+            });
+          }
+
+          finalLocationId = location.id;
+        }
+
+        // ============================
+        // STUDENT PROFILE
+        // ============================
+        const existingStudent = await db.Student.findOne({
+          where: { user_id: user.id }
+        });
+
         if (existingStudent) {
-          // Update existing student profile
           await existingStudent.update({
             name: row.name,
             class: row.class,
@@ -1469,15 +1649,11 @@ export const bulkUploadStudents = async (req, res) => {
             tutor_gender_preference: row.tutor_gender_preference,
             hourly_charges: row.hourly_charges,
             profile_photo: row.profile_photo,
-            location_id: finalLocationId,
+            location_id: finalLocationId
           });
-          
-          if (userWasUpdated) {
-            updatedCount++;
-            console.log(`Updated student profile: ${row.email}`);
-          }
+
+          if (userUpdated) updatedCount++;
         } else {
-          // Create new student profile
           await db.Student.create({
             user_id: user.id,
             name: row.name,
@@ -1493,26 +1669,18 @@ export const bulkUploadStudents = async (req, res) => {
             tutor_gender_preference: row.tutor_gender_preference,
             hourly_charges: row.hourly_charges,
             profile_photo: row.profile_photo,
-            location_id: finalLocationId,
+            location_id: finalLocationId
           });
-          
-          // Only count as created if both user and student profile are new
-          if (!userWasCreated) {
-            updatedCount++;
-            console.log(`Created student profile for existing user: ${row.email}`);
-          } else {
-            console.log(`Created new student with profile: ${row.email}`);
-          }
+
+          if (!userCreated) updatedCount++;
         }
 
-      } catch (err) {
-        console.error(`❌ Skipped student ${row.name} (${row.email}) due to:`, err.message);
+      } catch (e) {
         skippedCount++;
         continue;
       }
     }
 
-    // Cleanup file
     fs.unlink(filePath, () => {});
 
     return res.status(200).json({
@@ -1524,21 +1692,21 @@ export const bulkUploadStudents = async (req, res) => {
         skippedCount,
         successRate: `${(((createdCount + updatedCount) / students.length) * 100).toFixed(1)}%`
       },
-      defaultPassword,
+      defaultPassword
     });
+
   } catch (error) {
-    // Cleanup file in case of error
     if (req.file && req.file.path) {
       fs.unlink(req.file.path, () => {});
     }
-    
-    console.error("Bulk upload student error:", error);
+
     return res.status(500).json({
       message: "Bulk upload failed",
-      error: error.message,
+      error: error.message
     });
   }
 };
+
 
 // Get all enquiries (Admin only)
 export const getAllEnquiries = async (req, res) => {

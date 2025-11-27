@@ -390,9 +390,9 @@ export const verifyOTP = async (req, res) => {
 
 
 // Login
+// Login with proper role validation
 export const login = async (req, res) => {
-  const { emailOrMobile, password } = req.body;
-
+  const { emailOrMobile, password, role } = req.body;
 
   try {
     const user = await User.findOne({
@@ -409,50 +409,57 @@ export const login = async (req, res) => {
       ]
     });
 
-
     if (!user || !user.is_active) {
       return res.status(HttpStatus.UNAUTHORIZED).json({
         message: 'Invalid credentials or account not verified'
       });
     }
-     
-    //admin login-super admin
-    // If admin is not created by Super Admin (no Admin table entry)
-if (user.role === "admin" && !user.Admin) {
-  return res.status(403).json({
-    message: "Admin login not allowed. Super Admin has not approved your account."
-  });
-}
 
+    // STRICT ROLE VALIDATION
+    if (user.role !== role) {
+      return res.status(HttpStatus.FORBIDDEN).json({
+        message: `Cannot login as ${role}. Your account role is ${user.role}`
+      });
+    }
 
+    // Admin-specific validation
+    if (user.role === "admin" && !user.Admin) {
+      return res.status(HttpStatus.FORBIDDEN).json({
+        message: "Admin login not allowed. Super Admin has not approved your account."
+      });
+    }
+
+    // Student-specific validation
     if (user.role === "student") {
       return res.status(HttpStatus.BAD_REQUEST).json({
         message: "Students must login via OTP"
       });
     }
 
-
+    // Password validation for non-student roles
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Invalid credentials' });
+      return res.status(HttpStatus.UNAUTHORIZED).json({ 
+        message: 'Invalid credentials' 
+      });
     }
-
 
     const token = generateToken(user);
     return res.status(HttpStatus.OK).json({ 
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      mobile_number: user.mobile_number,
-      role: user.role,
-      // Include any other user data you need
-    }
-  });
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        mobile_number: user.mobile_number,
+        role: user.role,
+      }
+    });
   } catch (err) {
     logger.error('Login Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Login failed' });
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ 
+      message: 'Login failed' 
+    });
   }
 };
 

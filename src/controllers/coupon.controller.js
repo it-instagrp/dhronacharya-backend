@@ -11,17 +11,146 @@ const { Coupon, User, SubscriptionPlan, UserCoupon } = db;
 /**
  * Admin: Create Coupon
  */
+/**
+ * Admin: Create Coupon (with full SQL Injection + XSS validation)
+ */
 export const createCoupon = async (req, res) => {
   try {
-    const {
+    let {
       code, discount_type, discount_value,
       usage_limit, valid_from, valid_until,
       applicable_plan, description
     } = req.body;
 
+    // -----------------------------
+    // SECURITY VALIDATION START
+    // -----------------------------
+
+    const injectionPatterns = [
+      /['"`;]/g,
+      /--/g,
+      /\b(drop|delete|insert|update|select|alter|truncate)\b/i,
+      /<script.*?>.*?<\/script>/gi,
+      /<\/?[^>]+>/gi,
+      /\/\*.*?\*\//gs,
+    ];
+
+    const fieldsToCheck = { code, description };
+
+    for (const [key, value] of Object.entries(fieldsToCheck)) {
+      if (value && typeof value === "string") {
+        for (let pattern of injectionPatterns) {
+          if (pattern.test(value)) {
+            return res.status(400).json({
+              message: `Invalid ${key}: potentially harmful content detected.`,
+            });
+          }
+        }
+      }
+    }
+
+    // coupon code rule
+    const codeRegex = /^[A-Z0-9_-]+$/;
+    if (!codeRegex.test(code)) {
+      return res.status(400).json({
+        message:
+          "Invalid coupon code. Only A-Z, 0-9, _, - allowed. No spaces, no special symbols.",
+      });
+    }
+
+    code = code.toUpperCase();
+
+    // -----------------------------
+    // FIELD VALIDATIONS START
+    // -----------------------------
+
+    // discount_type validation
+    if (!["percentage", "fixed"].includes(discount_type)) {
+      return res.status(400).json({
+        message: "discount_type must be either 'percentage' or 'fixed'."
+      });
+    }
+
+    // discount_value validation
+    if (typeof discount_value !== "number" || isNaN(discount_value)) {
+      return res.status(400).json({
+        message: "discount_value must be a valid number.",
+      });
+    }
+
+    if (discount_value <= 0) {
+      return res.status(400).json({
+        message: "discount_value must be greater than 0.",
+      });
+    }
+
+    if (discount_type === "percentage" && discount_value > 100) {
+      return res.status(400).json({
+        message: "Percentage discount cannot be more than 100%.",
+      });
+    }
+
+    // usage_limit validation
+    if (usage_limit !== null) {
+      if (typeof usage_limit !== "number" || isNaN(usage_limit)) {
+        return res.status(400).json({
+          message: "usage_limit must be a number.",
+        });
+      }
+
+      if (usage_limit <= 0) {
+        return res.status(400).json({
+          message: "usage_limit must be a positive number.",
+        });
+      }
+    }
+
+    // date validation
+    const startDate = new Date(valid_from);
+    const endDate = new Date(valid_until);
+
+    if (isNaN(startDate.getTime())) {
+      return res.status(400).json({
+        message: "valid_from must be a valid date (YYYY-MM-DD).",
+      });
+    }
+
+    if (isNaN(endDate.getTime())) {
+      return res.status(400).json({
+        message: "valid_until must be a valid date (YYYY-MM-DD).",
+      });
+    }
+
+    if (endDate < startDate) {
+      return res.status(400).json({
+        message: "valid_until must be greater than or equal to valid_from.",
+      });
+    }
+
+    // applicable_plan validation
+    if (!applicable_plan || typeof applicable_plan !== "string") {
+      return res.status(400).json({
+        message: "applicable_plan is required and must be a string.",
+      });
+    }
+
+    if (!/^[A-Za-z0-9_\-]+$/.test(applicable_plan)) {
+      return res.status(400).json({
+        message: "Invalid applicable_plan. Only alphanumeric, _, - allowed.",
+      });
+    }
+
+    // -----------------------------
+    // FIELD VALIDATIONS END
+    // -----------------------------
+
+    // Duplicate check
     const existing = await Coupon.findOne({ where: { code } });
-    if (existing)
-      return res.status(400).json({ message: 'Coupon code already exists.' });
+    if (existing) {
+      return res.status(400).json({
+        message: "Coupon code already exists.",
+      });
+    }
 
     const coupon = await Coupon.create({
       code,
@@ -36,10 +165,17 @@ export const createCoupon = async (req, res) => {
       description
     });
 
-    return res.status(201).json({ message: 'Coupon created successfully.', coupon });
+    return res.status(201).json({
+      message: "Coupon created successfully.",
+      coupon,
+    });
+
   } catch (error) {
-    console.error('Error creating coupon:', error);
-    return res.status(500).json({ message: 'Error creating coupon', error: error.message });
+    console.error("Error creating coupon:", error);
+    return res.status(500).json({
+      message: "Error creating coupon",
+      error: error.message,
+    });
   }
 };
 
@@ -294,9 +430,10 @@ export const deleteCoupon = async (req, res) => {
 export const getAvailableCoupons = async (req, res) => {
   try {
     const today = new Date();
+
     const coupons = await Coupon.findAll({
       where: {
-        is_active: true,
+        is_active: true,   // ← ADD THIS LINE
         valid_from: { [Op.lte]: today },
         valid_until: { [Op.gte]: today },
         [Op.or]: [
