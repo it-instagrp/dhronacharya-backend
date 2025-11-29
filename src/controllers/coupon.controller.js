@@ -134,11 +134,12 @@ export const createCoupon = async (req, res) => {
       });
     }
 
-    if (!/^[A-Za-z0-9_\-]+$/.test(applicable_plan)) {
-      return res.status(400).json({
-        message: "Invalid applicable_plan. Only alphanumeric, _, - allowed.",
-      });
-    }
+    // NEW VALIDATION (allows spaces for plan names)
+if (!/^[A-Za-z0-9_\- ]+$/.test(applicable_plan)) {
+  return res.status(400).json({
+    message: "Invalid applicable_plan. Only alphanumeric, _, -, and spaces allowed.",
+  });
+}
 
     // -----------------------------
     // FIELD VALIDATIONS END

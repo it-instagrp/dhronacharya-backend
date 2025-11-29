@@ -32,7 +32,7 @@ const Payment = sequelize.define('Payment', {
     allowNull: true, // plan price before tax
   },
 
-  // 🆕 Discount & Coupon
+  // Discount & Coupon
   discount_amount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
