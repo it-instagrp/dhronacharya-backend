@@ -1,7 +1,7 @@
 import Razorpay from 'razorpay';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../models/index.js';
-import { sendNotification } from "../utils/notification.js"; 
+import { sendNotification } from "../utils/notification.js";
 import { subscriptionTemplates } from "../templates/subscription.template.js";
 import { Op, col } from 'sequelize';
 import crypto from 'crypto';

@@ -6,7 +6,9 @@ import {
   updateClass,
   cancelClass,
   getAllClasses,
-  deleteClassPermanently
+  deleteClassPermanently,
+  getAcceptedStudentsForTutor,
+  getAcceptedTutorsForStudent
 } from '../controllers/class.controller.js'; // Named imports
 
 const router = express.Router();
@@ -31,6 +33,10 @@ router.delete('/:id', cancelClass);
 
 // Permanently delete a class (admin/tutor/student)
 router.delete('/:id/permanent', deleteClassPermanently);
+
+//newly added 29-11-2025 for class schedule getaccepted tutor and  student 
+router.get("/accepted-students", authenticate, getAcceptedStudentsForTutor);
+router.get("/accepted-tutors", authenticate, getAcceptedTutorsForStudent);
 
 
 export default router;
