@@ -5,7 +5,7 @@ import logger from '../config/logger.js';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-// 🧩 Load Database Configuration
+// Load Database Configuration
 let DATABASE = process.env.DB_NAME;
 let USER_NAME = process.env.DB_USER;
 let PASSWORD = process.env.DB_PASSWORD;
@@ -22,7 +22,7 @@ if (process.env.NODE_ENV === 'test') {
   DIALECT = process.env.DB_DIALECT_TEST;
 }
 
-// 🧠 Debug Check
+// Debug Check
 console.log("Environment variables check:");
 console.log({
   DATABASE,
@@ -33,12 +33,12 @@ console.log({
   DIALECT
 });
 
-// 🚫 Validation
+// Validation
 if (!DATABASE || !USER_NAME || !PASSWORD || !HOST || !PORT || !DIALECT) {
-  throw new Error('❌ Database configuration is incomplete. Please check your .env file.');
+  throw new Error('Database configuration is incomplete. Please check your .env file.');
 }
 
-// ⚙️ Initialize Sequelize
+// Initialize Sequelize
 const sequelize = new Sequelize(DATABASE, USER_NAME, PASSWORD, {
   host: HOST,
   port: PORT,
@@ -57,14 +57,16 @@ const sequelize = new Sequelize(DATABASE, USER_NAME, PASSWORD, {
   },
 });
 
-// ✅ Test Connection
+// Test Connection
 sequelize.authenticate()
   .then(() => {
-    console.log('✅ Database connection has been established successfully.');
+    console.log('Database connection has been established successfully.');
+  
     logger.info('Connected to the database successfully.');
+    // sequelize.sync();
   })
   .catch((error) => {
-    console.error('❌ Unable to connect to the database:', error.message);
+    console.error('Unable to connect to the database:', error.message);
     logger.error('Database connection failed', error);
   });
 

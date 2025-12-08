@@ -1,3 +1,4 @@
+
 import Razorpay from 'razorpay';
 import { v4 as uuidv4 } from 'uuid';
 import db from '../models/index.js';
@@ -147,13 +148,16 @@ if (pendingPayment) {
 // ------------------------
 // Verify Razorpay Payment
 // ------------------------
+// ------------------------
+// Verify Razorpay Payment (FINAL UPDATED VERSION)
+// ------------------------
 export const verifyPayment = async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan_id, user_id } = req.body;
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
   try {
-    let isSignatureValid = true;
-
-    // Verify signature only in production
+    // -----------------------------
+    // Signature Validation
+    // -----------------------------
     if (process.env.NODE_ENV !== "development") {
       const expectedSignature = crypto
         .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -161,53 +165,92 @@ export const verifyPayment = async (req, res) => {
         .digest("hex");
 
       if (expectedSignature !== razorpay_signature) {
-        return res.status(400).json({ message: "Payment verification failed: Invalid signature" });
+        return res.status(400).json({ message: "Invalid payment signature" });
       }
-    } else {
-      console.warn("Development mode: Skipping Razorpay signature verification");
     }
 
+    // -----------------------------
+    // Fetch payment details
+    // -----------------------------
     const payment = await db.Payment.findOne({ where: { razorpay_order_id } });
     if (!payment) return res.status(404).json({ message: "Payment not found" });
 
-    // Update payment details
+    const user_id = payment.user_id;  
+    const plan_id = payment.plan_id;
+
+    // Mark payment as paid
     payment.razorpay_payment_id = razorpay_payment_id;
     payment.status = "paid";
     payment.paid_at = new Date();
-    payment.payment_gateway_response = {
-      ...(payment.payment_gateway_response || {}),
-      ...req.body,
-      base_amount: payment.base_amount,
-      gst_percentage: payment.tax_percentage,
-      gst_amount: payment.tax_amount,
-      discount_amount: payment.discount_amount,
-      coupon_code: payment.coupon_code,
-      total_amount: payment.amount,
-    };
     await payment.save();
 
-    // Fetch plan and activate subscription
-    const plan = await db.SubscriptionPlan.findByPk(plan_id || payment.plan_id);
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(startDate.getDate() + plan.duration_days);
+    // Fetch plan
+    const plan = await db.SubscriptionPlan.findByPk(plan_id);
+    const now = new Date();
 
+    // -----------------------------
+    // Find active & unexpired subscription
+    // -----------------------------
+    const existingSub = await db.UserSubscription.findOne({
+      where: {
+        user_id,
+        is_active: true,
+        end_date: { [Op.gt]: now }, // only valid subscriptions
+      },
+      order: [["created_at", "DESC"]],
+    });
+
+    let carryForward = 0;
+
+    if (existingSub) {
+      // Store remaining contacts
+      carryForward = existingSub.contacts_remaining;
+
+      // Deactivate old one
+      existingSub.is_active = false;
+      await existingSub.save();
+    }
+
+    // -----------------------------
+    // STACK VALIDITY LOGIC (IMPORTANT)
+    // -----------------------------
+    let startDate;
+    let endDate;
+
+    if (existingSub) {
+      // New plan starts after old expiry
+      startDate = existingSub.end_date;
+      endDate = new Date(existingSub.end_date);
+      endDate.setDate(endDate.getDate() + plan.duration_days);
+    } else {
+      // No subscription -> start today
+      startDate = now;
+      endDate = new Date();
+      endDate.setDate(endDate.getDate() + plan.duration_days);
+    }
+
+    // Add new limit + carry forward contacts
+    const newContactsRemaining = plan.contact_limit + carryForward;
+
+    // Create new subscription
     await db.UserSubscription.create({
-      user_id: user_id || payment.user_id,
-      plan_id: plan.id,
+      user_id,
+      plan_id,
       payment_id: payment.id,
       start_date: startDate,
       end_date: endDate,
-      contacts_remaining: plan.contact_limit,
+      contacts_remaining: newContactsRemaining,
       is_active: true,
     });
 
-    // Record coupon usage after successful payment
+    // -----------------------------
+    // Coupon handling
+    // -----------------------------
     if (payment.coupon_code) {
       const coupon = await db.Coupon.findOne({ where: { code: payment.coupon_code } });
       if (coupon) {
         await db.UserCoupon.create({
-          user_id: user_id || payment.user_id,
+          user_id,
           coupon_id: coupon.id,
           discount_amount: payment.discount_amount,
           used_at: new Date(),
@@ -218,8 +261,11 @@ export const verifyPayment = async (req, res) => {
       }
     }
 
-    // Notify user
-    const user = await db.User.findByPk(user_id || payment.user_id);
+    // -----------------------------
+    // Notifications
+    // -----------------------------
+    const user = await db.User.findByPk(user_id);
+
     if (user) {
       const params = {
         plan: plan.plan_name,
@@ -253,17 +299,20 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       message: "Payment verified and subscription activated",
       subscription: {
         plan_name: plan.plan_name,
         start_date: startDate,
         end_date: endDate,
+        contacts_remaining: newContactsRemaining,
+        carried_from_old: carryForward,
       },
     });
+
   } catch (err) {
     console.error("Error in verifyPayment:", err);
-    res.status(500).json({ message: "Verification failed", error: err.message });
+    return res.status(500).json({ message: "Verification failed", error: err.message });
   }
 };
 

@@ -8,7 +8,7 @@ const Tutor = sequelize.define('Tutor', {
     references: { model: 'users', key: 'id' },
   },
 
-  // ✅ Basic Info
+  // Basic Info
   name: {
     type: DataTypes.STRING(255),
     allowNull: true,

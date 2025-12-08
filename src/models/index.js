@@ -76,6 +76,17 @@ db.Review = Review;
 db.ReviewComment = ReviewComment;
 db.UserCoupon = UserCoupon;
 
+
+// ContactLog → UserSubscription relationship
+db.UserSubscription.hasMany(db.ContactLog, { 
+  foreignKey: 'subscription_id', 
+  onDelete: 'CASCADE' 
+});
+
+db.ContactLog.belongsTo(db.UserSubscription, { 
+  foreignKey: 'subscription_id' 
+});
+
 db.Blog = Blog;//blogs
 
 

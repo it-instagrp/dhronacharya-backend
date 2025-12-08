@@ -27,7 +27,7 @@ router.get('/', getMyClasses);
 router.patch('/:id', updateClass);
 
 // Cancel a class (student/tutor/admin)
-router.delete('/:id', cancelClass);
+router.put('/:id', cancelClass);
 
 //  Admin: View all scheduled classes
 

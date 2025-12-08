@@ -1,4 +1,4 @@
-// src/models/coupon.model.js
+
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
@@ -8,61 +8,69 @@ const Coupon = sequelize.define('Coupon', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
+
   code: {
     type: DataTypes.STRING(50),
     unique: true,
     allowNull: false
   },
+
+  coupon_type: {
+    type: DataTypes.ENUM('promotional', 'referral', 'global', 'retention'),
+    defaultValue: 'global',
+    allowNull: false
+  },
+
   discount_type: {
     type: DataTypes.ENUM('percentage', 'fixed'),
     allowNull: false
   },
+
   discount_value: {
     type: DataTypes.FLOAT,
     allowNull: false
   },
+
   usage_limit: {
     type: DataTypes.INTEGER,
-    defaultValue: 1
+    defaultValue: null,
+    allowNull: true
   },
+
   used_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0
   },
+
   valid_from: {
     type: DataTypes.DATE,
     allowNull: false
   },
+
   valid_until: {
     type: DataTypes.DATE,
     allowNull: false
   },
-  // ✅ Update in src/models/coupon.model.js
-applicable_plan: {
-  type: DataTypes.STRING,
-  defaultValue: 'all'
-}
-,
+
+  applicable_plan: {
+    type: DataTypes.STRING,
+    defaultValue: 'all'
+  },
+
   is_active: {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  usage_limit: {
-  type: DataTypes.INTEGER,
-  defaultValue: null,
-  allowNull: true
-}
-,
-description: {
-  type: DataTypes.STRING,
-  allowNull: true
-}
 
-}, 
-{
+  description: {
+    type: DataTypes.STRING,
+    allowNull: true
+  }
+
+}, {
   tableName: 'coupons',
-  timestamps: true,       // Sequelize will auto-manage created_at & updated_at
-  underscored: true       // Matches your DB naming conventions (snake_case)
+  timestamps: true,
+  underscored: true
 });
 
 export default Coupon;
