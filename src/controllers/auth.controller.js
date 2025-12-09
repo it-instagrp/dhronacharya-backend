@@ -9,12 +9,9 @@ import { sendSMS } from '../utils/sms.js';
 import { templates } from '../templates/index.js';
 import { getPlaceDetailsFromGoogle, getLocationFromPincode } from "../utils/googlePlacesService.js";
 
-
 const { User, Admin, Tutor, Student, Location } = db;
 import sequelize from '../config/database.js';
-
 // Generate JWT Token
-
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role },
@@ -28,9 +25,6 @@ const generateToken = (user) => {
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
-
-
-// Signup + Send OTP
 
 
 // Signup Controller
@@ -391,6 +385,7 @@ export const verifyOTP = async (req, res) => {
 
 // Login
 // Login with proper role validation
+// Login with basic user info only
 export const login = async (req, res) => {
   const { emailOrMobile, password, role } = req.body;
 
@@ -403,15 +398,31 @@ export const login = async (req, res) => {
         ]
       },
       include: [
-        { model: Tutor, include: [Location] },
-        { model: Student, include: [Location] },
+        { model: Tutor },
+        { model: Student },
         { model: Admin }
       ]
     });
 
-    if (!user || !user.is_active) {
+    // If user doesn't exist at all
+    if (!user) {
+      const isMobileNumber = /^[0-9+\-\s()]+$/.test(emailOrMobile);
+      
+      if (isMobileNumber) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          message: 'No account found with this mobile number. Please sign up first.'
+        });
+      } else {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          message: 'No account found with this email. Please sign up first.'
+        });
+      }
+    }
+
+    // Check if account is active/verified
+    if (!user.is_active) {
       return res.status(HttpStatus.UNAUTHORIZED).json({
-        message: 'Invalid credentials or account not verified'
+        message: 'Account not verified. Please verify your email/mobile first.'
       });
     }
 
@@ -445,6 +456,8 @@ export const login = async (req, res) => {
     }
 
     const token = generateToken(user);
+    
+    // Return only basic user information
     return res.status(HttpStatus.OK).json({ 
       token,
       user: {
@@ -462,7 +475,6 @@ export const login = async (req, res) => {
     });
   }
 };
-
 
 // Send OTP for Student Login
 // sendLoginOTP Resolver Fix
