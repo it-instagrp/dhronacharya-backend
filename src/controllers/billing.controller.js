@@ -1,5 +1,15 @@
 // src/controllers/billing.controller.js
-import db from '../models/index.js';
+import db from "../models/index.js";
+
+// Helper: format date to India timezone
+function formatIndiaDate(date) {
+  if (!date) return 'N/A';
+  try {
+    return new Date(date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  } catch {
+    return String(date);
+  }
+}
 
 export const getBillingHistory = async (req, res) => {
   const userId = req.user.id;
@@ -11,11 +21,11 @@ export const getBillingHistory = async (req, res) => {
         { model: db.SubscriptionPlan },
         { model: db.Payment }
       ],
-      order: [['created_at', 'DESC']]
+      order: [["createdAt", "DESC"]]
     });
 
     if (!subscriptions || subscriptions.length === 0) {
-      return res.status(404).json({ message: 'No subscriptions found' });
+      return res.status(404).json({ message: "No subscriptions found" });
     }
 
     const billingHistory = subscriptions
@@ -35,33 +45,39 @@ export const getBillingHistory = async (req, res) => {
             plan_type: plan.plan_type,
             features: plan.features,
             user_type: plan.user_type,
-            created_at: plan.created_at,
-            updated_at: plan.updated_at
+            created_at: formatIndiaDate(plan.createdAt),
+            updated_at: formatIndiaDate(plan.updatedAt)
           },
 
           subscription: {
             id: subscription.id,
-            start_date: subscription.start_date,
-            end_date: subscription.end_date,
+            start_date: formatIndiaDate(subscription.start_date),
+            end_date: formatIndiaDate(subscription.end_date),
             is_active: subscription.is_active,
-            contacts_remaining: subscription.contacts_remaining
+            contacts_remaining: subscription.contacts_remaining,
           },
 
           payment: {
             id: payment.id,
             razorpay_order_id: payment.razorpay_order_id,
             razorpay_payment_id: payment.razorpay_payment_id,
-            base_amount: parseFloat(payment.base_amount).toFixed(2),
-            discount_amount: parseFloat(payment.discount_amount).toFixed(2),
-            gst_percentage: payment.gst_percentage,
-            gst_amount: parseFloat(payment.gst_amount).toFixed(2),
-            total_amount: parseFloat(payment.total_amount).toFixed(2),
+
+            base_amount: Number(payment.base_amount).toFixed(2),
+            tax_percentage: payment.tax_percentage,
+            tax_amount: Number(payment.tax_amount).toFixed(2),
+            discount_amount: Number(payment.discount_amount).toFixed(2),
+            final_amount: Number(payment.amount).toFixed(2),
+
+            coupon_code: payment.coupon_code || '—',
+            coupon_type: payment.coupon_type || '—',
+
             currency: payment.currency,
-            status: payment.status
+            status: payment.status,
+            // show paid_at if exists, else fallback to createdAt
+            paid_at: formatIndiaDate(payment.paid_at || payment.createdAt),
           },
 
-          // ✅ PURCHASE DATE ADDED HERE
-          purchase_date: payment.created_at
+          purchase_date: formatIndiaDate(payment.createdAt)
         };
       })
       .filter(Boolean);

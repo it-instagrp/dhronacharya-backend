@@ -959,10 +959,67 @@ export const bulkUploadTutors = async (req, res) => {
     const normalizeArray = (val) => {
       if (!val) return [];
       if (Array.isArray(val)) return val;
-      return String(val)
+      
+      const strVal = String(val).trim();
+      
+      // Handle JSON array format like ["item1", "item2", "item3"]
+      if (strVal.startsWith('[') && strVal.endsWith(']')) {
+        try {
+          return JSON.parse(strVal);
+        } catch (error) {
+          console.error('Failed to parse as JSON array:', error.message);
+        }
+      }
+      
+      // Handle comma-separated values
+      return strVal
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
+    };
+
+    // Special function for documents field (JSONB type)
+    const normalizeDocuments = (val) => {
+      if (!val || val === '{}') return {};
+      if (typeof val === 'object' && !Array.isArray(val)) return val;
+      
+      const strVal = String(val).trim();
+      
+      // Handle {} format - JSON object
+      if (strVal.startsWith('{') && strVal.endsWith('}')) {
+        try {
+          return JSON.parse(strVal);
+        } catch (error) {
+          console.error('Failed to parse documents as JSON:', error.message);
+          return {};
+        }
+      }
+      
+      // Handle array format - convert to object
+      if (strVal.startsWith('[') && strVal.endsWith(']')) {
+        try {
+          const array = JSON.parse(strVal);
+          // Convert array to object with numeric keys
+          return array.reduce((obj, item, index) => {
+            obj[index] = item;
+            return obj;
+          }, {});
+        } catch (error) {
+          console.error('Failed to parse documents array:', error.message);
+        }
+      }
+      
+      // Handle comma-separated values - convert to object
+      if (strVal.includes(',')) {
+        const items = strVal.split(",").map(s => s.trim()).filter(Boolean);
+        return items.reduce((obj, item, index) => {
+          obj[index] = item;
+          return obj;
+        }, {});
+      }
+      
+      // Single value
+      return { 0: strVal };
     };
 
     let createdCount = 0;
@@ -1094,7 +1151,7 @@ export const bulkUploadTutors = async (req, res) => {
             introduction_text: row.introduction_text,
             teaching_modes: normalizeArray(row.teaching_modes),
             introduction_video: row.introduction_video,
-            documents: normalizeArray(row.documents),
+            documents: normalizeDocuments(row.documents), // Use special function for documents
             location_id: finalLocationId,
           });
 
@@ -1114,7 +1171,7 @@ export const bulkUploadTutors = async (req, res) => {
             introduction_text: row.introduction_text,
             teaching_modes: normalizeArray(row.teaching_modes),
             introduction_video: row.introduction_video,
-            documents: normalizeArray(row.documents),
+            documents: normalizeDocuments(row.documents), // Use special function for documents
             location_id: finalLocationId,
           });
 

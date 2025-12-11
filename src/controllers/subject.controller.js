@@ -3,17 +3,17 @@ import db from "../models/index.js";
 
 const { Subject, Class } = db;
 
-// ✅ Bulk insert subjects & classes
+// Bulk insert subjects & classes
 export const bulkInsertSubjects = async (req, res) => {
   const data = req.body; // expects array like subjectsData
   try {
     for (const item of data) {
-      // 1️⃣ Create or find class
+      // 1️Create or find class
       let [classRecord] = await Class.findOrCreate({
         where: { name: item.class, category: item.category },
       });
 
-      // 2️⃣ Insert subjects under that class
+      // 2️Insert subjects under that class
       for (const subjectName of item.subjects) {
         await Subject.findOrCreate({
           where: { name: subjectName, class_id: classRecord.id },

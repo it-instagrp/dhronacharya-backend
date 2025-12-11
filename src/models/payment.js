@@ -31,6 +31,10 @@ const Payment = sequelize.define('Payment', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true, // plan price before tax
   },
+   coupon_type: { //  ADD THIS FIELD
+    type: DataTypes.ENUM('promotional', 'referral', 'global', 'retention'),
+    allowNull: true,
+  },
 
   // Discount & Coupon
   discount_amount: {
