@@ -793,15 +793,32 @@ export const deleteCoupon = async (req, res) => {
 /**
  * Public: Get Active + Valid Coupons (all types)
  */
+/**
+ * Public: Get Active + Valid Coupons (all types EXCEPT private ones)
+ * Shows only ACTIVE coupons (not upcoming, not expired)
+ */
 export const getAvailableCoupons = async (req, res) => {
   try {
     const today = new Date();
-
+    
+    // Debug logging
+    console.log('Today:', today.toISOString());
+    
     const coupons = await Coupon.findAll({
       where: {
         is_active: true,
-        valid_from: { [Op.lte]: today },
-        valid_until: { [Op.gte]: today },
+        // EXCLUDE private coupon types
+        coupon_type: {
+          [Op.notIn]: ['retention', 'referral']
+        },
+        // Coupons that have already started (valid_from <= today)
+        valid_from: { 
+          [Op.lte]: today 
+        },
+        // Coupons that haven't expired yet (valid_until >= today)
+        valid_until: { 
+          [Op.gte]: today 
+        },
         [Op.or]: [
           { usage_limit: null },
           { usage_limit: { [Op.gt]: col('used_count') } },
@@ -810,9 +827,25 @@ export const getAvailableCoupons = async (req, res) => {
       order: [['createdAt', 'DESC']],
     });
 
-    return res.status(200).json({ coupons });
+    // Debug: Check what's being returned
+    console.log(`Found ${coupons.length} active coupons`);
+    coupons.forEach(coupon => {
+      console.log(`Coupon: ${coupon.code}, From: ${coupon.valid_from}, Until: ${coupon.valid_until}`);
+    });
+
+    return res.status(200).json({ 
+      coupons,
+      meta: {
+        total: coupons.length,
+        timestamp: today.toISOString()
+      }
+    });
   } catch (error) {
-    return res.status(500).json({ message: 'Error fetching coupons', error: error.message });
+    console.error('Error fetching coupons:', error);
+    return res.status(500).json({ 
+      message: 'Error fetching coupons', 
+      error: error.message 
+    });
   }
 };
 
