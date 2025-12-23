@@ -39,7 +39,7 @@ export const getBookmarks = async (req, res) => {
               include: [
                 {
                   model: db.Location,
-                  attributes: ['id', 'country', 'state', 'city', 'pincode'] // ✅ Return actual location
+                  attributes: ['id', 'country', 'state', 'city', 'pincode'] //  Return actual location
                 }
               ]
             },

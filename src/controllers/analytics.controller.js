@@ -9,7 +9,7 @@ const { UserSubscription, SubscriptionPlan, Payment, ReferralCode, User, ClassSc
 const getDateRangeFilter = (start, end, column = 'created_at') => {
   const where = {};
   if (start && end) {
-    where[column] = { [Op.between]: [new Date(start), new Date(end)] }; // ✅ fixed here
+    where[column] = { [Op.between]: [new Date(start), new Date(end)] }; // fixed here
   }
   return where;
 };
@@ -17,26 +17,38 @@ const getDateRangeFilter = (start, end, column = 'created_at') => {
 
 export const getAnalyticsSummary = async (req, res) => {
   try {
-    const subscriptions = await UserSubscription.count({ where: { is_active: true } });
+    const subscriptions = await UserSubscription.count({
+      where: { is_active: true }
+    });
 
-    // Separate base revenue (without GST) and tax revenue
-    const baseRevenue = await Payment.sum('base_amount', { where: { status: 'paid' } });
-    const taxCollected = await Payment.sum('tax_amount', { where: { status: 'paid' } });
-    const grossRevenue = await Payment.sum('amount', { where: { status: 'paid' } });
+    const baseRevenue =
+      (await Payment.sum('base_amount', { where: { status: 'paid' } })) || 0;
 
-    const referrals = await ReferralCode.count({ where: { status: 'converted' } });
+    const taxCollected =
+      (await Payment.sum('tax_amount', { where: { status: 'paid' } })) || 0;
+
+    //  FIX: calculate gross manually
+    const grossRevenue = Number(baseRevenue) + Number(taxCollected);
+
+    const referrals = await ReferralCode.count({
+      where: { status: 'converted' }
+    });
 
     res.json({
       subscriptions,
-      baseRevenue: baseRevenue || 0,
-      taxCollected: taxCollected || 0,
-      grossRevenue: grossRevenue || 0,
+      baseRevenue,
+      taxCollected,
+      grossRevenue: Number(grossRevenue.toFixed(2)), // clean rounding
       referrals
     });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching analytics summary', error: err.message });
+    res.status(500).json({
+      message: 'Error fetching analytics summary',
+      error: err.message
+    });
   }
 };
+
 
 export const exportSubscriptionsCSV = async (req, res) => {
   try {
@@ -165,7 +177,7 @@ export const exportReferralsCSV = async (req, res) => {
     res.attachment('referrals-detailed.csv');
     res.send(csv);
   } catch (err) {
-    console.error('❌ Error exporting referral CSV:', err);
+    console.error('Error exporting referral CSV:', err);
     res.status(500).json({ message: 'Error exporting referral CSV', error: err.message });
   }
 };
@@ -234,7 +246,7 @@ export const exportClassAttendancePDF = async (req, res) => {
     res.status(500).json({ message: 'Error exporting class attendance PDF', error: err.message });
   }
 };
-// 📦 Export Enquiries CSV
+//  Export Enquiries CSV
 export const exportEnquiriesCSV = async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
@@ -259,7 +271,7 @@ export const exportEnquiriesCSV = async (req, res) => {
   }
 };
 
-// 📄 Export Enquiries PDF
+// Export Enquiries PDF
 export const exportEnquiriesPDF = async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
@@ -320,7 +332,7 @@ export const exportUserReportCSV = async (req, res) => {
     res.status(500).json({ message: 'Error exporting user report CSV', error: err.message });
   }
 };
-// 📄 Export Users Report PDF
+// Export Users Report PDF
 export const exportUsersPDF = async (req, res) => {
   try {
     const { role, start_date, end_date } = req.query;
@@ -386,7 +398,7 @@ export const getClassAttendanceChart = async (req, res) => {
   }
 };
 
-// 📊 Get Enquiries Chart Data (Group by Day)
+// Get Enquiries Chart Data (Group by Day)
 export const getEnquiriesChart = async (req, res) => {
   try {
     const { start_date, end_date } = req.query;
@@ -413,7 +425,7 @@ export const getEnquiriesChart = async (req, res) => {
     res.status(500).json({ message: 'Error generating enquiries chart', error: err.message });
   }
 };
-// 📊 Get Users Chart Data (Group by Day)
+// Get Users Chart Data (Group by Day)
 export const getUsersChart = async (req, res) => {
   try {
     const { start_date, end_date, role } = req.query;

@@ -653,7 +653,7 @@ export const sendBulkUserMessage = async (req, res) => {
     });
 
     if (!users.length) {
-      return res.status(404).json({ message: 'No users found for given filter' });
+      return res.status(404).json({ message: 'No users found for given Classes' });
     }
 
     const sentTo = [];

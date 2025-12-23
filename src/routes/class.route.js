@@ -8,7 +8,8 @@ import {
   getAllClasses,
   deleteClassPermanently,
   getAcceptedStudentsForTutor,
-  getAcceptedTutorsForStudent
+  getAcceptedTutorsForStudent,
+  getAllMyAcceptedConnections
 } from '../controllers/class.controller.js'; // Named imports
 
 const router = express.Router();
@@ -38,5 +39,6 @@ router.delete('/:id/permanent', deleteClassPermanently);
 router.get("/accepted-students", authenticate, getAcceptedStudentsForTutor);
 router.get("/accepted-tutors", authenticate, getAcceptedTutorsForStudent);
 
+router.get('/my-connections', authenticate, getAllMyAcceptedConnections);
 
 export default router;

@@ -157,7 +157,7 @@ const isAdmin = currentUser.role === "admin" || currentUser.role === "super_admi
         {
           model: db.User,
           as: "Sender",
-          attributes: ["id", "role", "email", "mobile_number", "is_active"],
+          attributes: ["id", "role", "is_active"],
           include: [
             {
               model: db.Tutor,
@@ -229,7 +229,7 @@ const isAdmin = currentUser.role === "admin" || currentUser.role === "super_admi
         {
           model: db.User,
           as: "Receiver",
-          attributes: ["id", "role", "email", "mobile_number", "is_active"],
+          attributes: ["id", "role",  "is_active"],
           include: [
             {
               model: db.Tutor,
@@ -312,8 +312,8 @@ const isAdmin = currentUser.role === "admin" || currentUser.role === "super_admi
       sender: {
         id: enquiry.Sender.id,
         role: enquiry.Sender.role,
-        email: enquiry.Sender.email,
-        mobile_number: enquiry.Sender.mobile_number,
+        // email: enquiry.Sender.email,
+        // mobile_number: enquiry.Sender.mobile_number,
         name: enquiry.Sender.Tutor?.name || enquiry.Sender.Student?.name,
         profile:
           enquiry.Sender.role === "tutor"
@@ -323,8 +323,8 @@ const isAdmin = currentUser.role === "admin" || currentUser.role === "super_admi
       receiver: {
         id: enquiry.Receiver.id,
         role: enquiry.Receiver.role,
-        email: enquiry.Receiver.email,
-        mobile_number: enquiry.Receiver.mobile_number,
+        // email: enquiry.Receiver.email,
+        // mobile_number: enquiry.Receiver.mobile_number,
         name: enquiry.Receiver.Tutor?.name || enquiry.Receiver.Student?.name,
         profile:
           enquiry.Receiver.role === "tutor"

@@ -15,7 +15,7 @@ const {
   Sequelize,
 } = db;
 
-// ✅ 1. Generate a referral code
+// 1. Generate a referral code
 export const generateReferralCode = async (req, res) => {
   const userId = req.user.id;
 
@@ -50,7 +50,7 @@ export const generateReferralCode = async (req, res) => {
 };
 
 
-// ✅ 2. Apply referral code
+//  2. Apply referral code
 export const applyReferralCode = async (req, res) => {
   const { code } = req.body;
   const referredUser = req.user;
@@ -109,7 +109,7 @@ export const applyReferralCode = async (req, res) => {
     try {
       await sendEmail(referrer.email, 'Your referral was used!', emailMessage);
     } catch (e) {
-      console.error('❌ Email send failed:', e.message);
+      console.error(' Email send failed:', e.message);
     }
 
     if (referrer.mobile_number) {
@@ -117,7 +117,7 @@ export const applyReferralCode = async (req, res) => {
         await sendSMS(referrer.mobile_number, smsMessage);
         await sendWhatsApp(referrer.mobile_number, whatsappMessage);
       } catch (e) {
-        console.error('❌ SMS/WhatsApp failed:', e.message);
+        console.error(' SMS/WhatsApp failed:', e.message);
       }
     }
 
@@ -125,12 +125,12 @@ export const applyReferralCode = async (req, res) => {
       .status(200)
       .json({ status: true, message: 'Referral applied successfully.' });
   } catch (err) {
-    console.error('❌ Error applying referral:', err);
+    console.error(' Error applying referral:', err);
     return res.status(500).json({ status: false, message: 'Internal Server Error' });
   }
 };
 
-// ✅ 3. Get my referrals
+//  3. Get my referrals
 export const getMyReferralCodes = async (req, res) => {
   const userId = req.user.id;
 
@@ -240,7 +240,7 @@ export const getAllReferrals = async (req, res) => {
         referredAt: r.referred_at || null,
       });
 
-      // ✅ Only count referral if actually applied and converted
+      // Only count referral if actually applied and converted
       if (r.referred_user_id && r.status === 'converted') {
         grouped[refId].referredCount++;
       }
@@ -255,73 +255,116 @@ export const getAllReferrals = async (req, res) => {
 };
 
 
-// ✅ 5. Mark reward as given (Updated for student/tutor + subscription)
+//  5. Mark reward as given (FINAL FIXED VERSION)
 export const markRewardGiven = async (req, res) => {
   const { id } = req.params;
   const { rewardType, rewardValue } = req.body;
 
   try {
+    //  Fetch referral
     const referral = await ReferralCode.findByPk(id);
-    if (!referral)
-      return res.status(404).json({ status: false, message: 'Referral not found.' });
+    if (!referral) {
+      return res.status(404).json({
+        status: false,
+        message: 'Referral not found.',
+      });
+    }
 
+    // Prevent double reward
+    if (referral.reward_given) {
+      return res.status(400).json({
+        status: false,
+        message: 'Reward already given for this referral.',
+      });
+    }
+
+    // Fetch referrer
     const referrer = await User.findByPk(referral.referrer_user_id);
-    if (!referrer)
-      return res.status(404).json({ status: false, message: 'Referrer not found.' });
+    if (!referrer) {
+      return res.status(404).json({
+        status: false,
+        message: 'Referrer not found.',
+      });
+    }
 
-    // ✅ 1. CONTACT VIEW BONUS — student/tutor
+    // =====================================================
+    // 1. CONTACT VIEW BONUS → APPLY TO ACTIVE SUBSCRIPTION
+    // =====================================================
     if (rewardType === 'contact_view_bonus' && !isNaN(parseInt(rewardValue))) {
       const bonusViews = parseInt(rewardValue);
 
-      if (referrer.role === 'student') {
-        const student = await Student.findOne({ where: { user_id: referrer.id } });
-        if (student) {
-          student.contact_views_left = (student.contact_views_left || 0) + bonusViews;
-          await student.save();
-        }
+      const activeSubscription = await UserSubscription.findOne({
+        where: {
+          user_id: referrer.id,
+          is_active: true,
+          end_date: { [Op.gt]: new Date() },
+        },
+        order: [['created_at', 'DESC']],
+      });
+
+      if (!activeSubscription) {
+        return res.status(400).json({
+          status: false,
+          message: 'User has no active subscription to apply contact bonus.',
+        });
       }
 
-      if (referrer.role === 'tutor') {
-        const tutor = await Tutor.findOne({ where: { user_id: referrer.id } });
-        if (tutor) {
-          tutor.contact_views_left = (tutor.contact_views_left || 0) + bonusViews;
-          await tutor.save();
-        }
-      }
+      activeSubscription.contacts_remaining =
+        (activeSubscription.contacts_remaining || 0) + bonusViews;
+
+      await activeSubscription.save();
     }
 
-    // ✅ 2. SUBSCRIPTION BONUS
+    // =================================
+    //  2. SUBSCRIPTION DATE EXTENSION
+    // =================================
     if (rewardType === 'subscription_bonus' && rewardValue.includes('Days')) {
       const bonusDays = parseInt(rewardValue.split(' ')[0]);
 
       const activeSubscription = await UserSubscription.findOne({
         where: {
-          user_id: referral.referrer_user_id,
+          user_id: referrer.id,
           is_active: true,
           end_date: { [Op.gt]: new Date() },
         },
+        order: [['created_at', 'DESC']],
       });
 
-      if (activeSubscription) {
-        const newEndDate = new Date(activeSubscription.end_date);
-        newEndDate.setDate(newEndDate.getDate() + bonusDays);
-        activeSubscription.end_date = newEndDate;
-        await activeSubscription.save();
+      if (!activeSubscription) {
+        return res.status(400).json({
+          status: false,
+          message: 'User has no active subscription to extend.',
+        });
       }
+
+      const newEndDate = new Date(activeSubscription.end_date);
+      newEndDate.setDate(newEndDate.getDate() + bonusDays);
+      activeSubscription.end_date = newEndDate;
+
+      await activeSubscription.save();
     }
 
-    // ✅ 3. COUPON or DISCOUNT (Log only)
+    // =========================
+    //  3. COUPON / DISCOUNT
+    // =========================
     if (rewardType === 'coupon' || rewardType === 'discount') {
-      console.log(`Apply ${rewardType}: ${rewardValue} to user ID ${referrer.id}`);
+      // Only log for now – future use
+      console.log(
+        `Apply ${rewardType} (${rewardValue}) to user ${referrer.id}`
+      );
     }
 
-    // ✅ Finalize reward entry
+    // =========================
+    //  4. SAVE REWARD DETAILS
+    // =========================
     referral.reward_given = true;
     referral.reward_type = rewardType;
     referral.reward_value = rewardValue;
     await referral.save();
 
-    // ✅ 4. Notify referrer via Email, SMS, WhatsApp
+    // =========================
+    //  5. SEND NOTIFICATIONS
+    // =========================
     const template = referralTemplates.rewardGiven;
 
     const emailContent = template.email({
@@ -343,9 +386,13 @@ export const markRewardGiven = async (req, res) => {
     });
 
     try {
-      await sendEmail(referrer.email, 'You received a referral reward!', emailContent);
+      await sendEmail(
+        referrer.email,
+        ' You received a referral reward!',
+        emailContent
+      );
     } catch (e) {
-      console.error('❌ Email send failed:', e.message);
+      console.error(' Email send failed:', e.message);
     }
 
     if (referrer.mobile_number) {
@@ -353,17 +400,21 @@ export const markRewardGiven = async (req, res) => {
         await sendSMS(referrer.mobile_number, smsContent);
         await sendWhatsApp(referrer.mobile_number, whatsappContent);
       } catch (e) {
-        console.error('❌ SMS/WhatsApp failed:', e.message);
+        console.error(' SMS/WhatsApp failed:', e.message);
       }
     }
 
     return res.status(200).json({
       status: true,
-      message: 'Referral reward processed and notification sent.',
+      message: 'Referral reward applied successfully.',
       referral,
     });
+
   } catch (err) {
-    console.error('❌ Error processing reward:', err);
-    return res.status(500).json({ status: false, message: 'Internal Server Error' });
+    console.error(' Error processing reward:', err);
+    return res.status(500).json({
+      status: false,
+      message: 'Internal Server Error',
+    });
   }
 };

@@ -384,8 +384,6 @@ export const verifyOTP = async (req, res) => {
 
 
 // Login
-// Login with proper role validation
-// Login with basic user info only
 export const login = async (req, res) => {
   const { emailOrMobile, password, role } = req.body;
 
@@ -404,61 +402,53 @@ export const login = async (req, res) => {
       ]
     });
 
-    // If user doesn't exist at all
+    // ✅ CASE 1: Email/Mobile NOT found → Signup first
     if (!user) {
-      const isMobileNumber = /^[0-9+\-\s()]+$/.test(emailOrMobile);
-      
-      if (isMobileNumber) {
-        return res.status(HttpStatus.NOT_FOUND).json({
-          message: 'No account found with this mobile number. Please sign up first.'
-        });
-      } else {
-        return res.status(HttpStatus.NOT_FOUND).json({
-          message: 'No account found with this email. Please sign up first.'
-        });
-      }
-    }
-
-    // Check if account is active/verified
-    if (!user.is_active) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({
-        message: 'Account not verified. Please verify your email/mobile first.'
+      return res.status(HttpStatus.NOT_FOUND).json({
+        message: "Account not found. Please sign up first."
       });
     }
 
-    // STRICT ROLE VALIDATION
+    // ✅ Account not verified
+    if (!user.is_active) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        message: "Account not verified. Please verify first."
+      });
+    }
+
+    // ✅ Role mismatch
     if (user.role !== role) {
       return res.status(HttpStatus.FORBIDDEN).json({
         message: `Cannot login as ${role}. Your account role is ${user.role}`
       });
     }
 
-    // Admin-specific validation
+    // ✅ Admin validation
     if (user.role === "admin" && !user.Admin) {
       return res.status(HttpStatus.FORBIDDEN).json({
-        message: "Admin login not allowed. Super Admin has not approved your account."
+        message: "Admin access not approved yet."
       });
     }
 
-    // Student-specific validation
+    // ✅ Student must login via OTP
     if (user.role === "student") {
       return res.status(HttpStatus.BAD_REQUEST).json({
-        message: "Students must login via OTP"
+        message: "Students must login using OTP."
       });
     }
 
-    // Password validation for non-student roles
+    // ✅ CASE 2: Email/Mobile exists BUT password is wrong
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
-      return res.status(HttpStatus.UNAUTHORIZED).json({ 
-        message: 'Invalid credentials' 
+      return res.status(HttpStatus.UNAUTHORIZED).json({
+        message: "Incorrect password"
       });
     }
 
+    // ✅ Login success
     const token = generateToken(user);
-    
-    // Return only basic user information
-    return res.status(HttpStatus.OK).json({ 
+
+    return res.status(HttpStatus.OK).json({
       token,
       user: {
         id: user.id,
@@ -468,13 +458,15 @@ export const login = async (req, res) => {
         role: user.role,
       }
     });
+
   } catch (err) {
-    logger.error('Login Error:', err);
-    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ 
-      message: 'Login failed' 
+    logger.error("Login Error:", err);
+    return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      message: "Login failed"
     });
   }
 };
+
 
 // Send OTP for Student Login
 // sendLoginOTP Resolver Fix
