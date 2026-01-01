@@ -3,7 +3,7 @@ import { sendNotification } from '../utils/notification.js';
 
 const { Notification } = db;
 
-// ✅ Create & send notification (admin/internal use)
+//  Create & send notification (admin/internal use)
 export const createNotification = async (req, res) => {
   const { user_id, type, template_name, recipient, content } = req.body;
 
@@ -35,7 +35,7 @@ export const createNotification = async (req, res) => {
   }
 };
 
-// ✅ Get all notifications for the logged-in user
+//  Get all notifications for the logged-in user
 export const getUserNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -91,7 +91,7 @@ export const deleteNotification = async (req, res) => {
   }
 };
 
-// 📦 Admin: Get all notifications created by admin
+//  Admin: Get all notifications created by admin
 export const getAllNotifications = async (req, res) => {
   try {
     const notifications = await db.Notification.findAll({

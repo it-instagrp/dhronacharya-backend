@@ -162,25 +162,137 @@ export const getAllTutors = async (req, res) => {
   }
 };
 
-// Update Tutor Status (approve/reject)
 export const updateTutorStatus = async (req, res) => {
   const { user_id } = req.params;
-  const { profile_status } = req.body;
+  const { profile_status, admin_remarks = '' } = req.body;
 
   if (!['approved', 'pending', 'rejected'].includes(profile_status)) {
     return res.status(400).json({ message: 'Invalid profile status' });
   }
 
   try {
-    const tutor = await Tutor.findOne({ where: { user_id } });
+    const tutor = await Tutor.findOne({ 
+      where: { user_id },
+      include: [{ model: User }]
+    });
+    
     if (!tutor) return res.status(404).json({ message: 'Tutor not found' });
 
+    // Update tutor status
     tutor.profile_status = profile_status;
+    if (admin_remarks) tutor.admin_remarks = admin_remarks;
     await tutor.save();
 
-    res.json({ message: `Tutor profile ${profile_status}` });
+    // Handle user account status - ALLOW LOGIN FOR PENDING STATUS
+    if (profile_status === 'rejected') {
+      await User.update(
+        { is_active: false },
+        { where: { id: user_id } }
+      );
+    } else {
+      // For both 'approved' AND 'pending' status, keep account active
+      await User.update(
+        { is_active: true },
+        { where: { id: user_id } }
+      );
+    }
+
+    // Send email notifications
+    try {
+      let emailConfig = {};
+      
+      if (profile_status === 'approved') {
+        emailConfig = {
+          subject: '🎉 Congratulations! Your Tutor Profile Has Been Approved - Dronacharya',
+          template_name: 'tutor_approved',
+          message: `We are delighted to inform you that your tutor profile has been successfully approved!\n\nYou can now log in to your account and start accepting students.\n\nWelcome to the Dronacharya tutoring community!\n\nBest regards,\nDronacharya Team\ninfo@dronacharyatutorials.com`
+        };
+      } else if (profile_status === 'pending') {
+        emailConfig = {
+          subject: '⏳ Tutor Profile Under Review - Dronacharya',
+          template_name: 'general',
+          message: `Your tutor profile is currently under review by our admin team.\n\nYou can still log in to your account, but your profile will not be visible to students until approved.\n\nWe will notify you once the review is complete. This process typically takes 24-48 hours.\n\nThank you for your patience.\n\nBest regards,\nDronacharya Team\ninfo@dronacharyatutorials.com`
+        };
+      } else if (profile_status === 'rejected') {
+        emailConfig = {
+          subject: 'Important: Tutor Profile Status Update - Dronacharya',
+          template_name: 'general',
+         message: `After careful review, we regret to inform you that your tutor profile has  been rejected at this time.${
+            admin_remarks ? `\n\nReason: ${admin_remarks}` : ''
+          }\n\nYour account has been temporarily deactivated. If you believe there has been an error or would like to appeal, please contact our support team.\n\nBest regards,\nDronacharya Team\ninfo@dronacharyatutorials.com`
+        }; 
+      }
+
+      await sendNotification({
+        type: 'email',
+        recipient: tutor.User.email,
+        subject: emailConfig.subject,
+        template_name: emailConfig.template_name,
+        params: {
+          name: tutor.name,
+          message: emailConfig.message
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError);
+    }
+
+    // Send SMS notification if phone exists
+    if (tutor.phone) {
+      try {
+        let smsMessage = '';
+        
+        if (profile_status === 'approved') {
+          smsMessage = `Dear ${tutor.name}, Your tutor profile has been approved! You can now login and start teaching. Welcome to Dronacharya!`;
+        } else if (profile_status === 'pending') {
+          smsMessage = `Dear ${tutor.name}, Your tutor profile is under review. You can still login but profile won't be visible to students until approved.`;
+        } else if (profile_status === 'rejected') {
+          smsMessage = `Dear ${tutor.name}, Your tutor profile was not approved.${admin_remarks ? ` Reason: ${admin_remarks}` : ''} Account deactivated. Contact support.`;
+        }
+
+        // Implement your SMS sending logic here
+        console.log(`[SMS] To: ${tutor.phone}, Message: ${smsMessage}`);
+        
+      } catch (smsError) {
+        console.error('Failed to send SMS:', smsError);
+      }
+    }
+
+    // Send WhatsApp notification if phone exists
+    if (tutor.phone) {
+      try {
+        let whatsappMessage = '';
+        
+        if (profile_status === 'approved') {
+          whatsappMessage = `🎉 *Profile Approved!*\n\nDear ${tutor.name},\n\nGreat news! Your tutor profile has been *approved*.\n\nYou can now:\n✅ Login to your account\n✅ Set your availability\n✅ Start accepting students\n\nWelcome to the Dronacharya community!\n\n_This is an automated message from Dronacharya Tutorials_`;
+        } else if (profile_status === 'pending') {
+          whatsappMessage = `⏳ *Profile Under Review*\n\nDear ${tutor.name},\n\nYour tutor profile is currently *under review*.\n\n🔓 You can *still login* to your account\n👁️ Profile *not visible* to students yet\n⏰ Review time: 24-48 hours\n\nWe'll notify you once approved!\n\n_This is an automated message from Dronacharya Tutorials_`;
+        } else if (profile_status === 'rejected') {
+          whatsappMessage = `⚠️ *Profile Update*\n\nDear ${tutor.name},\n\nYour tutor profile was *not approved* at this time.${
+            admin_remarks ? `\n\n📝 *Reason:* ${admin_remarks}` : ''
+          }\n\n🔒 Your account has been *deactivated*\n\nContact support for assistance.\n\n_This is an automated message from Dronacharya Tutorials_`;
+        }
+
+        // Implement your WhatsApp sending logic here
+        console.log(`[WhatsApp] To: ${tutor.phone}, Message: ${whatsappMessage}`);
+        
+      } catch (whatsappError) {
+        console.error('Failed to send WhatsApp:', whatsappError);
+      }
+    }
+
+    res.json({ 
+      message: `Tutor profile ${profile_status}`,
+      login_blocked: profile_status === 'rejected',  // Only blocked for rejected
+      account_active: profile_status !== 'rejected', // Active for approved and pending
+      notifications_sent: true
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update tutor status', error: error.message });
+    console.error('Error updating tutor status:', error);
+    res.status(500).json({ 
+      message: 'Failed to update tutor status', 
+      error: error.message 
+    });
   }
 };
 
@@ -653,7 +765,7 @@ export const sendBulkUserMessage = async (req, res) => {
     });
 
     if (!users.length) {
-      return res.status(404).json({ message: 'No users found for given filter' });
+      return res.status(404).json({ message: 'No users found for given Classes' });
     }
 
     const sentTo = [];

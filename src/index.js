@@ -1,81 +1,3 @@
-// import dotenv from 'dotenv';
-// dotenv.config();
-
-// import express from 'express';
-// import cors from 'cors';
-// import helmet from 'helmet';
-// import { authenticate } from './middlewares/auth.middleware.js';
-// import { startMessageConsumer } from "./kafka/consumer.js";
-// import routes from './routes/index.js';
-// import './scheduler.js';
-// import publicRoutes from './routes/public.routes.js';
-
-// import sitemapRoutes from "./routes/sitemap.routes.js";
-// // 👇 Public route (no authentication)
-// import contactusRoutes from './routes/contactus.routes.js';
-// import path from 'path';
-
-// import {
-//   appErrorHandler,
-//   genericErrorHandler,
-//   notFound
-// } from './middlewares/error.middleware.js';
-// import logger, { logStream } from './config/logger.js';
-
-// import morgan from 'morgan';
-
-// const app = express();
-// const host = process.env.APP_HOST;
-// const port = process.env.APP_PORT;
-
-// app.use(
-//   cors({
-//     origin: '*',
-//     credentials: true,
-//   })
-// );
-// app.use(helmet());
-// app.use(express.urlencoded({ extended: true }));
-// app.use(express.json());
-// app.use(morgan('combined', { stream: logStream }));
-
-// app.use('/api/contact', contactusRoutes);
-
-
-// app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-// app.use(
-//   "/api/uploads",
-//   express.static("uploads", {
-//     setHeaders: (res, path) => {
-//       if (path.endsWith(".pdf")) {
-//         res.setHeader("Content-Type", "application/pdf");
-//         res.setHeader("Content-Disposition", "inline"); // show in browser
-//       }
-//     },
-//   })
-// );
-// app.use("/", sitemapRoutes);
-// app.use("/public", publicRoutes);
-// app.use(authenticate);
-// app.use(`/api`, routes());
-
-// app.use(appErrorHandler);
-// app.use(genericErrorHandler);
-// app.use(notFound);
-
-
-// // Start Kafka consumer with error handling
-// startMessageConsumer().catch(error => {
-//   console.warn("Kafka consumer initialization failed, but app continues:", error.message);
-// });
-
-
-// app.listen(port, () => {
-//   logger.info(`Server started at ${host}:${port}/api/`);
-// });
-// export default app;
-
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -83,49 +5,43 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { authenticate } from './middlewares/auth.middleware.js';
-import { startMessageConsumer } from "./kafka/consumer.js";
 import routes from './routes/index.js';
 import './scheduler.js';
 import publicRoutes from './routes/public.routes.js';
-
 import sitemapRoutes from "./routes/sitemap.routes.js";
-// Public route (no authentication)
 import contactusRoutes from './routes/contactus.routes.js';
 import path from 'path';
-
 import {
   appErrorHandler,
   genericErrorHandler,
   notFound
 } from './middlewares/error.middleware.js';
 import logger, { logStream } from './config/logger.js';
-
 import morgan from 'morgan';
 
 const app = express();
 const host = process.env.APP_HOST;
 const port = process.env.APP_PORT;
 
-// ✅ FIXED: Configure Helmet with proper CSP for WebSockets
+// ✅ Configure Helmet with proper CSP for WebSockets
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         connectSrc: [
-          "'self'", 
-          "wss:", 
-          "ws:", 
+          "'self'",
+          "wss:",
+          "ws:",
           `wss://api.dronacharyatutorials.com`,
           `https://api.dronacharyatutorials.com`
         ],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
-        // Add other directives as needed for your app
       },
     },
-    crossOriginEmbedderPolicy: false // May be needed for some features
+    crossOriginEmbedderPolicy: false
   })
 );
 
@@ -141,7 +57,6 @@ app.use(express.json());
 app.use(morgan('combined', { stream: logStream }));
 
 app.use('/api/contact', contactusRoutes);
-
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.use(
@@ -150,7 +65,7 @@ app.use(
     setHeaders: (res, path) => {
       if (path.endsWith(".pdf")) {
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", "inline"); // show in browser
+        res.setHeader("Content-Disposition", "inline");
       }
     },
   })
@@ -165,13 +80,9 @@ app.use(appErrorHandler);
 app.use(genericErrorHandler);
 app.use(notFound);
 
-// Start Kafka consumer with error handling
-startMessageConsumer().catch(error => {
-  console.warn("Kafka consumer initialization failed, but app continues:", error.message);
-});
-
 app.listen(port, () => {
   logger.info(`Server started at ${host}:${port}/api/`);
+  logger.info("WebSocket servers running on ports 8080 (enquiries) and 8081 (conversations)");
 });
 
 export default app;

@@ -1,8 +1,6 @@
 import db from '../models/index.js';
 const { Conversation, Bookmark, User, Tutor, Student, Message } = db;
 import { Op } from 'sequelize';
-import { sendKafkaMessage } from '../kafka/producer.js';
-import { isConsumerActive } from '../kafka/consumer.js';
 import { broadcastToConversation } from '../websocket/conversation.server.js';
 
 /**
@@ -40,6 +38,7 @@ export const getOrCreateConversation = async (req, res) => {
     const bookmark = await Bookmark.findOne({
       where: { user_id: student_id, bookmarked_user_id: tutor_id },
     });
+
     if (!bookmark) {
       await Bookmark.create({ user_id: student_id, bookmarked_user_id: tutor_id });
     }
@@ -49,16 +48,14 @@ export const getOrCreateConversation = async (req, res) => {
     if (!convo) {
       convo = await Conversation.create({ student_id, tutor_id });
       
-      // Send Kafka notification for new conversation
-      if (isConsumerActive && isConsumerActive()) {
-        await sendKafkaMessage("Conversation", {
-          conversation_id: convo.id,
-          student_id,
-          tutor_id,
-          created_at: new Date(),
-          type: 'new_conversation'
-        });
-      }
+      // Broadcast new conversation via WebSocket
+      broadcastToConversation(convo.id, {
+        type: 'new_conversation',
+        conversation_id: convo.id,
+        student_id,
+        tutor_id,
+        created_at: new Date().toISOString()
+      });
     }
 
     return res.status(200).json({
@@ -88,10 +85,9 @@ export const getConversationMessages = async (req, res) => {
 
     const messages = await Message.findAll({
       where: { conversation_id: id },
-      include: [{ 
-        model: User, 
-        // REMOVED: as: 'Sender' - use default association
-        attributes: ['id', 'email', 'role', 'name'] 
+      include: [{
+        model: User,
+        attributes: ['id', 'email', 'role', 'name']
       }],
       order: [['created_at', 'ASC']],
     });
@@ -115,22 +111,21 @@ export const sendConversationMessage = async (req, res) => {
   }
 
   try {
-    // FIXED: Use correct aliases from your model definitions
     const convo = await Conversation.findByPk(id, {
       include: [
-        { 
-          model: User, 
-          as: 'Student',  // From your model: as: 'Student'
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'Student',
+          attributes: ['id', 'name', 'email']
         },
-        { 
-          model: User, 
-          as: 'Tutor',  // From your model: as: 'Tutor'
-          attributes: ['id', 'name', 'email'] 
+        {
+          model: User,
+          as: 'Tutor',
+          attributes: ['id', 'name', 'email']
         }
       ]
     });
-    
+
     if (!convo) return res.status(404).json({ status: false, message: 'Conversation not found' });
 
     if (![convo.student_id, convo.tutor_id].includes(sender_id)) {
@@ -138,44 +133,25 @@ export const sendConversationMessage = async (req, res) => {
     }
 
     // Create message in DB
-    const message = await Message.create({ 
-      conversation_id: id, 
-      sender_id, 
-      content: content.trim() 
+    const message = await Message.create({
+      conversation_id: id,
+      sender_id,
+      content: content.trim()
     });
 
     // Update conversation timestamp
-    await convo.update({ 
+    await convo.update({
       last_message_at: new Date(),
       updated_at: new Date()
     });
 
     // Fetch message with sender details for WebSocket broadcast
     const messageWithSender = await Message.findByPk(message.id, {
-      include: [{ 
-        model: User, 
-        // REMOVED: as: 'Sender' - use default association
-        attributes: ['id', 'email', 'role', 'name'] 
+      include: [{
+        model: User,
+        attributes: ['id', 'email', 'role', 'name']
       }]
     });
-
-    // Send to Kafka if consumer is active
-    if (isConsumerActive && isConsumerActive()) {
-      await sendKafkaMessage("ConversationMessage", {
-        message_id: message.id,
-        conversation_id: id,
-        sender_id,
-        content: content.trim(),
-        created_at: new Date(),
-        type: 'new_message',
-        conversation_data: {
-          student_id: convo.student_id,
-          tutor_id: convo.tutor_id,
-          student_name: convo.Student?.name,
-          tutor_name: convo.Tutor?.name
-        }
-      });
-    }
 
     // Broadcast to WebSocket clients
     broadcastToConversation(id, {
@@ -204,26 +180,24 @@ export const getUserConversations = async (req, res) => {
 
   try {
     let conversations;
-    
     if (authUser.role === 'student') {
       conversations = await Conversation.findAll({
         where: { student_id: authUser.id },
         include: [
-          { 
-            model: User, 
-            as: 'Tutor',  // From your model: as: 'Tutor'
+          {
+            model: User,
+            as: 'Tutor',
             attributes: ['id', 'name', 'email', 'role'],
             include: [{ model: Tutor, attributes: ['profile_photo', 'subjects'] }]
           },
           {
             model: Message,
-            as: 'Messages',  // From your model: as: 'Messages'
+            as: 'Messages',
             limit: 1,
             order: [['created_at', 'DESC']],
-            include: [{ 
-              model: User, 
-              // REMOVED: as: 'Sender' - use default association
-              attributes: ['id', 'name'] 
+            include: [{
+              model: User,
+              attributes: ['id', 'name']
             }]
           }
         ],
@@ -233,30 +207,29 @@ export const getUserConversations = async (req, res) => {
       conversations = await Conversation.findAll({
         where: { tutor_id: authUser.id },
         include: [
-          { 
-            model: User, 
-            as: 'Student',  // From your model: as: 'Student'
+          {
+            model: User,
+            as: 'Student',
             attributes: ['id', 'name', 'email', 'role'],
             include: [{ model: Student, attributes: ['profile_photo', 'class'] }]
           },
           {
             model: Message,
-            as: 'Messages',  // From your model: as: 'Messages'
+            as: 'Messages',
             limit: 1,
             order: [['created_at', 'DESC']],
-            include: [{ 
-              model: User, 
-              // REMOVED: as: 'Sender' - use default association
-              attributes: ['id', 'name'] 
+            include: [{
+              model: User,
+              attributes: ['id', 'name']
             }]
           }
         ],
         order: [['last_message_at', 'DESC']]
       });
     } else {
-      return res.status(400).json({ 
-        status: false, 
-        message: 'Only students and tutors can have conversations' 
+      return res.status(400).json({
+        status: false,
+        message: 'Only students and tutors can have conversations'
       });
     }
 
@@ -264,7 +237,7 @@ export const getUserConversations = async (req, res) => {
     const formattedConversations = conversations.map(convo => {
       const otherUser = authUser.role === 'student' ? convo.Tutor : convo.Student;
       const lastMessage = convo.Messages?.[0];
-      
+
       return {
         id: convo.id,
         last_message_at: convo.last_message_at,
@@ -282,7 +255,7 @@ export const getUserConversations = async (req, res) => {
         last_message: lastMessage ? {
           content: lastMessage.content,
           sender_id: lastMessage.sender_id,
-          sender_name: lastMessage.User?.name,  // Changed from Sender to User
+          sender_name: lastMessage.User?.name,
           created_at: lastMessage.created_at
         } : null
       };
@@ -294,10 +267,10 @@ export const getUserConversations = async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching conversations:', err);
-    return res.status(500).json({ 
-      status: false, 
-      message: 'Failed to fetch conversations', 
-      error: err.message 
+    return res.status(500).json({
+      status: false,
+      message: 'Failed to fetch conversations',
+      error: err.message
     });
   }
 };
@@ -329,16 +302,6 @@ export const markMessagesAsRead = async (req, res) => {
       }
     );
 
-    // Send Kafka notification for read receipt
-    if (isConsumerActive && isConsumerActive()) {
-      await sendKafkaMessage("ConversationMessage", {
-        conversation_id: id,
-        user_id: authUser.id,
-        type: 'messages_read',
-        read_at: new Date()
-      });
-    }
-
     // Broadcast read receipt via WebSocket
     broadcastToConversation(id, {
       type: 'messages_read',
@@ -353,10 +316,10 @@ export const markMessagesAsRead = async (req, res) => {
     });
   } catch (err) {
     console.error('Error marking messages as read:', err);
-    return res.status(500).json({ 
-      status: false, 
-      message: 'Failed to mark messages as read', 
-      error: err.message 
+    return res.status(500).json({
+      status: false,
+      message: 'Failed to mark messages as read',
+      error: err.message
     });
   }
 };

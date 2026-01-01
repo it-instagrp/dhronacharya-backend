@@ -359,6 +359,29 @@ export const updateProfileField = async (req, res) => {
       const user = await User.findByPk(user_id); // Fetch user for personalization
       if (!user) return res.status(404).json({ message: 'User not found' });
 
+      // Check if the new value already exists for another user
+      const existingUser = await User.findOne({
+        where: {
+          [field]: value,
+          id: { [Op.ne]: user_id } // Exclude current user
+        }
+      });
+
+      if (existingUser) {
+        const entityType = field === 'email' ? 'Email' : 'Mobile number';
+        return res.status(400).json({ 
+          message: `${entityType} already registered with another account` 
+        });
+      }
+
+      // Also check if user is trying to update to the same value
+      if (user[field] === value) {
+        const entityType = field === 'email' ? 'Email' : 'Mobile number';
+        return res.status(400).json({ 
+          message: `${entityType} is already set to this value` 
+        });
+      }
+
       const otpCode = crypto.randomInt(100000, 999999).toString();
       const expires_at = new Date(Date.now() + 5 * 60 * 1000); // OTP valid for 5 min
 
@@ -416,8 +439,36 @@ export const updateProfileField = async (req, res) => {
       const user = await User.findByPk(user_id);
       if (!user) return res.status(404).json({ message: 'User not found' });
 
+      // Final check before update (in case another user registered with this value since OTP request)
+      const existingUser = await User.findOne({
+        where: {
+          [field]: value,
+          id: { [Op.ne]: user_id }
+        }
+      });
+
+      if (existingUser) {
+        const entityType = field === 'email' ? 'Email' : 'Mobile number';
+        return res.status(400).json({ 
+          message: `${entityType} already registered with another account. Please try a different one.` 
+        });
+      }
+
+      // Update the field
       user[field] = value;
-      await user.save();
+      
+      try {
+        await user.save();
+      } catch (err) {
+        // Catch any other validation errors
+        if (err.name === 'SequelizeUniqueConstraintError') {
+          const entityType = field === 'email' ? 'Email' : 'Mobile number';
+          return res.status(400).json({ 
+            message: `${entityType} already registered with another account` 
+          });
+        }
+        throw err; // Re-throw other errors
+      }
 
       await otpRecord.destroy();
 
@@ -427,12 +478,20 @@ export const updateProfileField = async (req, res) => {
     return res.status(400).json({ message: 'Invalid action' });
   } catch (err) {
     console.error('Error in updateProfileField:', err);
+    
+    // Handle specific error types
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      const entityType = field === 'email' ? 'Email' : 'Mobile number';
+      return res.status(400).json({ 
+        message: `${entityType} already registered with another account` 
+      });
+    }
+    
     return res
       .status(500)
       .json({ message: 'Failed to update field', error: err.message });
   }
 };
-
 
 
 // Delete Profile + User

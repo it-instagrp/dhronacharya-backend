@@ -11,6 +11,11 @@ function formatIndiaDate(date) {
   }
 }
 
+// Helper: Generate invoice number on the fly
+function generateInvoiceNumber(paymentId) {
+  return `DRONA-${paymentId}`;
+}
+
 export const getBillingHistory = async (req, res) => {
   const userId = req.user.id;
 
@@ -34,6 +39,23 @@ export const getBillingHistory = async (req, res) => {
         const payment = subscription.Payment;
 
         if (!plan || !payment) return null;
+
+        // Generate invoice number
+        const invoiceNumber = generateInvoiceNumber(payment.id);
+        
+        // Extract CGST/SGST from payment_gateway_response or calculate
+        const paymentResponse = payment.payment_gateway_response || {};
+        const cgstPercentage = paymentResponse.cgst_percentage || 9;
+        const sgstPercentage = paymentResponse.sgst_percentage || 9;
+        let cgstAmount = paymentResponse.cgst_amount;
+        let sgstAmount = paymentResponse.sgst_amount;
+        
+        // If not stored in JSON, calculate from tax_amount
+        if (!cgstAmount || !sgstAmount) {
+          const taxAmount = Number(payment.tax_amount) || 0;
+          cgstAmount = taxAmount / 2;
+          sgstAmount = taxAmount / 2;
+        }
 
         return {
           plan: {
@@ -59,12 +81,16 @@ export const getBillingHistory = async (req, res) => {
 
           payment: {
             id: payment.id,
+            invoice_number: invoiceNumber,
             razorpay_order_id: payment.razorpay_order_id,
             razorpay_payment_id: payment.razorpay_payment_id,
 
             base_amount: Number(payment.base_amount).toFixed(2),
-            tax_percentage: payment.tax_percentage,
-            tax_amount: Number(payment.tax_amount).toFixed(2),
+            cgst_percentage: cgstPercentage,
+            cgst_amount: Number(cgstAmount).toFixed(2),
+            sgst_percentage: sgstPercentage,
+            sgst_amount: Number(sgstAmount).toFixed(2),
+            total_tax: (Number(cgstAmount) + Number(sgstAmount)).toFixed(2),
             discount_amount: Number(payment.discount_amount).toFixed(2),
             final_amount: Number(payment.amount).toFixed(2),
 
@@ -73,7 +99,6 @@ export const getBillingHistory = async (req, res) => {
 
             currency: payment.currency,
             status: payment.status,
-            // show paid_at if exists, else fallback to createdAt
             paid_at: formatIndiaDate(payment.paid_at || payment.createdAt),
           },
 

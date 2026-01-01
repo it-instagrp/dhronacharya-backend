@@ -42,10 +42,14 @@ export const createOrder = async (req, res) => {
     const basePrice = parseFloat(plan.price);
     const actualPlanName = plan.plan_name;
 
-    const gstRate = 18;
-    const gstAmount = (basePrice * gstRate) / 100;
+    // Split 18% GST into 9% CGST and 9% SGST
+    const cgstRate = 9;
+    const sgstRate = 9;
+    const cgstAmount = (basePrice * cgstRate) / 100;
+    const sgstAmount = (basePrice * sgstRate) / 100;
+    const totalTax = cgstAmount + sgstAmount; // This is equivalent to 18% GST
 
-    let finalPrice = basePrice + gstAmount;
+    let finalPrice = basePrice + totalTax;
     let appliedCoupon = null;
     let discountAmount = 0;
 
@@ -140,6 +144,7 @@ export const createOrder = async (req, res) => {
       // ---------------------------------------
       // APPLY DISCOUNT (industry standard)
       // ---------------------------------------
+      // Apply discount on the total price (base + tax)
       if (appliedCoupon.discount_type === 'percentage') {
         discountAmount = (finalPrice * appliedCoupon.discount_value) / 100;
       } else {
@@ -156,7 +161,7 @@ export const createOrder = async (req, res) => {
         finalPrice = 1;
 
         // adjust actual discount
-        discountAmount = basePrice + gstAmount - 1;
+        discountAmount = basePrice + totalTax - 1;
       }
     }
 
@@ -170,27 +175,40 @@ export const createOrder = async (req, res) => {
       receipt,
     });
 
-    // SAVE PAYMENT
+    // Store CGST/SGST details in payment_gateway_response JSON
+    const taxDetails = {
+      cgst_percentage: cgstRate,
+      cgst_amount: cgstAmount,
+      sgst_percentage: sgstRate,
+      sgst_amount: sgstAmount,
+      total_tax: totalTax,
+    };
+
+    // SAVE PAYMENT - store CGST/SGST in payment_gateway_response
     const payment = await db.Payment.create({
       user_id,
       plan_id,
       razorpay_order_id: order.id,
       base_amount: basePrice,
-      tax_percentage: gstRate,
-      tax_amount: gstAmount,
+      tax_percentage: 18, // Keep old field for compatibility (total GST)
+      tax_amount: totalTax, // Keep old field for compatibility
       amount: finalPrice,
       discount_amount: discountAmount,
       coupon_code: appliedCoupon ? appliedCoupon.code : null,
       coupon_type: appliedCoupon ? appliedCoupon.coupon_type : null,
       currency: 'INR',
       status: 'created',
+      payment_gateway_response: taxDetails, // Store CGST/SGST details here
     });
 
     return res.json({
       order_id: order.id,
       base_amount: basePrice,
-      gst_percentage: gstRate,
-      gst_amount: gstAmount,
+      cgst_percentage: cgstRate,
+      cgst_amount: cgstAmount,
+      sgst_percentage: sgstRate,
+      sgst_amount: sgstAmount,
+      total_tax: totalTax,
       discount_amount: discountAmount,
       coupon_code: appliedCoupon ? appliedCoupon.code : null,
       coupon_type: appliedCoupon ? appliedCoupon.coupon_type : null,
@@ -205,7 +223,6 @@ export const createOrder = async (req, res) => {
     return res.status(500).json({ message: "Error creating order", error: err.message });
   }
 };
-
 
 // ===================================================================
 // VERIFY PAYMENT

@@ -382,7 +382,7 @@ export const getAcceptedTutorsForStudent = async (req, res) => {
         {
           model: User,
           as: "Sender", // alias from your model
-          attributes: ["id", "name", "email", "mobile_number"]
+          attributes: ["id", "name"]
         }
       ]
     });
@@ -422,7 +422,7 @@ export const getAcceptedStudentsForTutor = async (req, res) => {
         {
           model: User,
           as: "Receiver", // alias from model
-          attributes: ["id", "name", "email", "mobile_number"]
+          attributes: ["id", "name"]
         }
       ]
     });
@@ -445,6 +445,186 @@ export const getAcceptedStudentsForTutor = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch students",
+      error: error.message
+    });
+  }
+};
+
+
+export const getAllMyAcceptedConnections = async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+    const currentUserRole = req.user.role;
+
+    // Find all accepted enquiries where I'm involved
+    const allAccepted = await Enquiry.findAll({
+      where: {
+        status: "accepted",
+        [Op.or]: [
+          { sender_id: currentUserId },
+          { receiver_id: currentUserId }
+        ]
+      },
+      include: [
+        {
+          model: User,
+          as: "Sender",
+          attributes: ["id", "name", "email", "mobile_number", "role"],
+          include: [
+            {
+              model: Tutor,
+              as: "Tutor",
+              attributes: [
+                "user_id",
+                "name",
+                "subjects",
+                "profile_photo",
+                "teaching_modes",
+                "pricing_per_hour",
+                "profile_status"
+              ],
+              include: [{
+                model: Location,
+                attributes: ["city", "state", "country"]
+              }]
+            },
+            {
+              model: Student,
+              as: "Student",
+              attributes: [
+                "user_id",
+                "name",
+                "class",
+                "subjects",
+                "profile_photo",
+                "class_modes",
+                "hourly_charges"
+              ],
+              include: [{
+                model: Location,
+                attributes: ["city", "state", "country"]
+              }]
+            }
+          ]
+        },
+        {
+          model: User,
+          as: "Receiver",
+          attributes: ["id", "name", "email", "mobile_number", "role"],
+          include: [
+            {
+              model: Tutor,
+              as: "Tutor",
+              attributes: [
+                "user_id",
+                "name",
+                "subjects",
+                "profile_photo",
+                "teaching_modes",
+                "pricing_per_hour",
+                "profile_status"
+              ],
+              include: [{
+                model: Location,
+                attributes: ["city", "state", "country"]
+              }]
+            },
+            {
+              model: Student,
+              as: "Student",
+              attributes: [
+                "user_id",
+                "name",
+                "class",
+                "subjects",
+                "profile_photo",
+                "class_modes",
+                "hourly_charges"
+              ],
+              include: [{
+                model: Location,
+                attributes: ["city", "state", "country"]
+              }]
+            }
+          ]
+        }
+      ],
+      order: [["createdAt", "DESC"]]
+    });
+
+    // Categorize connections
+    const connections = {
+      accepted_by_me: [],  // I accepted their enquiry
+      who_accepted_me: []  // They accepted my enquiry
+    };
+
+    const uniqueConnectionsMap = new Map();
+
+    allAccepted.forEach(enquiry => {
+      const isSender = enquiry.sender_id === currentUserId;
+      const isReceiver = enquiry.receiver_id === currentUserId;
+      const otherUser = isSender ? enquiry.Receiver : enquiry.Sender;
+      
+      if (otherUser) {
+        // Check if we already have this user (to avoid duplicates)
+        const connectionKey = otherUser.id;
+        
+        if (!uniqueConnectionsMap.has(connectionKey)) {
+          const connectionData = {
+            user: {
+              id: otherUser.id,
+              name: otherUser.name,
+              email: otherUser.email,
+              mobile_number: otherUser.mobile_number,
+              role: otherUser.role,
+              profile: otherUser.Tutor || otherUser.Student
+            },
+            enquiry: {
+              id: enquiry.id,
+              subject: enquiry.subject,
+              class: enquiry.class,
+              mode: enquiry.mode,
+              created_at: enquiry.createdAt,
+              connection_type: isReceiver ? 'they_sent_i_accepted' : 'i_sent_they_accepted'
+            }
+          };
+
+          uniqueConnectionsMap.set(connectionKey, connectionData);
+
+          // Categorize
+          if (isReceiver && currentUserRole === 'tutor') {
+            // I'm tutor, received enquiry from student and accepted it
+            connections.accepted_by_me.push(connectionData);
+          } else if (isSender && currentUserRole === 'student') {
+            // I'm student, sent enquiry to tutor and they accepted it
+            connections.who_accepted_me.push(connectionData);
+          } else if (isReceiver && currentUserRole === 'student') {
+            // I'm student, received enquiry from tutor and accepted it
+            connections.accepted_by_me.push(connectionData);
+          } else if (isSender && currentUserRole === 'tutor') {
+            // I'm tutor, sent enquiry to student and they accepted it
+            connections.who_accepted_me.push(connectionData);
+          }
+        }
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      my_role: currentUserRole,
+      stats: {
+        total_connections: uniqueConnectionsMap.size,
+        accepted_by_me: connections.accepted_by_me.length,
+        who_accepted_me: connections.who_accepted_me.length
+      },
+      connections
+    });
+
+  } catch (error) {
+    console.error("Error fetching all accepted connections:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch connections",
       error: error.message
     });
   }

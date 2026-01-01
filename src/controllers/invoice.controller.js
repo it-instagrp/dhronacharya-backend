@@ -4,24 +4,6 @@ import PDFDocument from 'pdfkit';
 import { Parser } from 'json2csv';
 import { Op } from 'sequelize';
 
-// ---------------- Helper: Calculate invoice amounts ----------------
-function calculateInvoiceAmounts(payment) {
-  const gstRate = Number(payment.tax_percentage) || 18;
-  const amount = Number(payment.amount);
-
-  const gstAmount =
-    payment.tax_amount != null
-      ? Number(payment.tax_amount)
-      : amount - amount / (1 + gstRate / 100);
-
-  const baseAmount =
-    payment.SubscriptionPlan?.price != null
-      ? Number(payment.SubscriptionPlan.price)
-      : amount - gstAmount;
-
-  return { gstRate, amount, gstAmount, baseAmount };
-}
-
 // ---------------- Helper: Format date to India timezone ----------------
 function formatIndiaDate(date) {
   if (!date) return 'N/A';
@@ -30,6 +12,56 @@ function formatIndiaDate(date) {
   } catch {
     return String(date);
   }
+}
+
+// ---------------- Helper: Generate invoice number on the fly ----------------
+function generateInvoiceNumber(paymentId) {
+  return `DRONA-${paymentId}`;
+}
+
+// ---------------- Helper: Calculate invoice amounts with CGST/SGST ----------------
+function calculateInvoiceAmounts(payment) {
+  // Extract from payment_gateway_response if available
+  const paymentResponse = payment.payment_gateway_response || {};
+  
+  const cgstRate = paymentResponse.cgst_percentage || 9;
+  const sgstRate = paymentResponse.sgst_percentage || 9;
+  const amount = Number(payment.amount);
+
+  // Try to get CGST/SGST amounts from payment_gateway_response
+  let cgstAmount = paymentResponse.cgst_amount;
+  let sgstAmount = paymentResponse.sgst_amount;
+
+  // If not available in JSON, calculate from tax_amount or base calculation
+  if (!cgstAmount || !sgstAmount) {
+    // Calculate total tax (18%)
+    const totalTaxRate = 18;
+    const totalTax = payment.tax_amount != null
+      ? Number(payment.tax_amount)
+      : amount - amount / (1 + (totalTaxRate / 100));
+    
+    // Split equally between CGST and SGST
+    cgstAmount = totalTax / 2;
+    sgstAmount = totalTax / 2;
+  } else {
+    cgstAmount = Number(cgstAmount);
+    sgstAmount = Number(sgstAmount);
+  }
+
+  const totalTax = cgstAmount + sgstAmount;
+  const baseAmount = payment.SubscriptionPlan?.price != null
+    ? Number(payment.SubscriptionPlan.price)
+    : amount - totalTax;
+
+  return { 
+    cgstRate, 
+    sgstRate, 
+    amount, 
+    cgstAmount, 
+    sgstAmount, 
+    totalTax, 
+    baseAmount 
+  };
 }
 
 // ---------------- Helper: Fetch subscription details ----------------
@@ -106,6 +138,8 @@ export const generateInvoice = async (req, res) => {
 
     if (!payment) return res.status(404).json({ message: 'Payment not found' });
 
+    const invoiceNumber = generateInvoiceNumber(payment.id);
+    
     const {
       contacts_remaining,
       carried_from_old,
@@ -115,7 +149,16 @@ export const generateInvoice = async (req, res) => {
       end_date,
     } = await fetchSubscriptionDetailsForPayment(payment);
 
-    const { gstRate, amount, gstAmount, baseAmount } = calculateInvoiceAmounts(payment);
+    const { 
+      cgstRate, 
+      sgstRate, 
+      amount, 
+      cgstAmount, 
+      sgstAmount, 
+      totalTax, 
+      baseAmount 
+    } = calculateInvoiceAmounts(payment);
+    
     const discountAmount =
       payment.discount_amount != null
         ? Number(payment.discount_amount)
@@ -127,11 +170,12 @@ export const generateInvoice = async (req, res) => {
     // PDF Generation
     const doc = new PDFDocument({ margin: 40 });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename=invoice_${payment_id}.pdf`);
+    res.setHeader('Content-Disposition', `inline; filename=invoice_${invoiceNumber}.pdf`);
     doc.pipe(res);
 
     doc.fontSize(16).text('Payment Invoice', { align: 'center' }).moveDown(1);
-    doc.fontSize(11).text(`Invoice ID: ${payment.id}`);
+    doc.fontSize(11).text(`Invoice Number: ${invoiceNumber}`);
+    doc.text(`Payment ID: ${payment.id}`);
     doc.text(`Date: ${formatIndiaDate(payment.createdAt)}`);
     doc.text(`User Name: ${payment.User?.name || 'N/A'}`);
     doc.text(`User Email: ${payment.User?.email || 'N/A'}`);
@@ -141,7 +185,9 @@ export const generateInvoice = async (req, res) => {
 
     doc.moveDown(0.5);
     doc.text(`Base Amount: ₹${baseAmount.toFixed(2)}`);
-    doc.text(`GST (${gstRate}%): ₹${gstAmount.toFixed(2)}`);
+    doc.text(`CGST (${cgstRate}%): ₹${cgstAmount.toFixed(2)}`);
+    doc.text(`SGST (${sgstRate}%): ₹${sgstAmount.toFixed(2)}`);
+    doc.text(`Total Tax: ₹${totalTax.toFixed(2)}`);
     doc.text(`Discount (${couponCode}): ₹${discountAmount.toFixed(2)}`);
     doc.text(`Final Amount: ₹${finalAmount.toFixed(2)}`);
     doc.moveDown(0.5);
@@ -194,7 +240,18 @@ export const getMyInvoices = async (req, res) => {
 
     const formatted = await Promise.all(
       payments.map(async (p) => {
-        const { gstRate, amount, gstAmount, baseAmount } = calculateInvoiceAmounts(p);
+        const invoiceNumber = generateInvoiceNumber(p.id);
+        
+        const { 
+          cgstRate, 
+          sgstRate, 
+          amount, 
+          cgstAmount, 
+          sgstAmount, 
+          totalTax, 
+          baseAmount 
+        } = calculateInvoiceAmounts(p);
+        
         const discount_amount =
           p.discount_amount !== null
             ? Number(p.discount_amount)
@@ -212,11 +269,15 @@ export const getMyInvoices = async (req, res) => {
         } = await fetchSubscriptionDetailsForPayment(p);
 
         return {
+          invoice_number: invoiceNumber,
           payment_id: p.id,
           plan_name: p.SubscriptionPlan?.plan_name,
           base_amount: baseAmount.toFixed(2),
-          gst_percentage: gstRate,
-          gst_amount: gstAmount.toFixed(2),
+          cgst_percentage: cgstRate,
+          cgst_amount: cgstAmount.toFixed(2),
+          sgst_percentage: sgstRate,
+          sgst_amount: sgstAmount.toFixed(2),
+          total_tax: totalTax.toFixed(2),
           discount_amount: discount_amount.toFixed(2),
           coupon_code,
           total_amount: amount.toFixed(2),
@@ -261,6 +322,7 @@ export const getAllInvoicesForAdmin = async (req, res) => {
         'coupon_code',
         'razorpay_payment_id',
         'createdAt',
+        'payment_gateway_response',
       ],
       include: [
         {
@@ -278,7 +340,18 @@ export const getAllInvoicesForAdmin = async (req, res) => {
 
     const formatted = await Promise.all(
       payments.map(async (p) => {
-        const { gstRate, amount, gstAmount, baseAmount } = calculateInvoiceAmounts(p);
+        const invoiceNumber = generateInvoiceNumber(p.id);
+        
+        const { 
+          cgstRate, 
+          sgstRate, 
+          amount, 
+          cgstAmount, 
+          sgstAmount, 
+          totalTax, 
+          baseAmount 
+        } = calculateInvoiceAmounts(p);
+        
         const discount_amount = Number(p.discount_amount || 0);
         const coupon_code = p.coupon_code || '—';
         const final_amount = amount - discount_amount;
@@ -293,6 +366,7 @@ export const getAllInvoicesForAdmin = async (req, res) => {
         } = await fetchSubscriptionDetailsForPayment(p);
 
         return {
+          invoice_number: invoiceNumber,
           invoice_id: p.id,
           user_name: p.User?.Tutor?.name || p.User?.Student?.name || p.User?.name || 'Unnamed',
           user_email: p.User?.email,
@@ -300,8 +374,11 @@ export const getAllInvoicesForAdmin = async (req, res) => {
           role: p.User?.role,
           plan_name: p.SubscriptionPlan?.plan_name,
           base_amount: baseAmount.toFixed(2),
-          gst_percentage: gstRate,
-          gst_amount: gstAmount.toFixed(2),
+          cgst_percentage: cgstRate,
+          cgst_amount: cgstAmount.toFixed(2),
+          sgst_percentage: sgstRate,
+          sgst_amount: sgstAmount.toFixed(2),
+          total_tax: totalTax.toFixed(2),
           discount_amount: discount_amount.toFixed(2),
           coupon_code,
           total_amount: amount.toFixed(2),
@@ -342,6 +419,7 @@ export const exportAllInvoicesCSV = async (req, res) => {
         'coupon_code',
         'razorpay_payment_id',
         'createdAt',
+        'payment_gateway_response',
       ],
       include: [
         {
@@ -359,7 +437,18 @@ export const exportAllInvoicesCSV = async (req, res) => {
 
     const data = await Promise.all(
       payments.map(async (p) => {
-        const { gstRate, amount, gstAmount, baseAmount } = calculateInvoiceAmounts(p);
+        const invoiceNumber = generateInvoiceNumber(p.id);
+        
+        const { 
+          cgstRate, 
+          sgstRate, 
+          amount, 
+          cgstAmount, 
+          sgstAmount, 
+          totalTax, 
+          baseAmount 
+        } = calculateInvoiceAmounts(p);
+        
         const discount_amount = Number(p.discount_amount || 0);
         const coupon_code = p.coupon_code || '—';
         const final_amount = amount - discount_amount;
@@ -374,6 +463,7 @@ export const exportAllInvoicesCSV = async (req, res) => {
         } = await fetchSubscriptionDetailsForPayment(p);
 
         return {
+          invoice_number: invoiceNumber,
           invoice_id: p.id,
           user_name: p.User?.Tutor?.name || p.User?.Student?.name || p.User?.name || 'Unnamed',
           email: p.User?.email,
@@ -381,8 +471,11 @@ export const exportAllInvoicesCSV = async (req, res) => {
           role: p.User?.role,
           plan: p.SubscriptionPlan?.plan_name,
           base_amount: baseAmount.toFixed(2),
-          gst_percentage: gstRate,
-          gst_amount: gstAmount.toFixed(2),
+          cgst_percentage: cgstRate,
+          cgst_amount: cgstAmount.toFixed(2),
+          sgst_percentage: sgstRate,
+          sgst_amount: sgstAmount.toFixed(2),
+          total_tax: totalTax.toFixed(2),
           discount_amount: discount_amount.toFixed(2),
           coupon_code,
           total_amount: amount.toFixed(2),
@@ -401,6 +494,7 @@ export const exportAllInvoicesCSV = async (req, res) => {
     );
 
     const fields = [
+      'invoice_number',
       'invoice_id',
       'user_name',
       'email',
@@ -408,8 +502,11 @@ export const exportAllInvoicesCSV = async (req, res) => {
       'role',
       'plan',
       'base_amount',
-      'gst_percentage',
-      'gst_amount',
+      'cgst_percentage',
+      'cgst_amount',
+      'sgst_percentage',
+      'sgst_amount',
+      'total_tax',
       'discount_amount',
       'coupon_code',
       'total_amount',
