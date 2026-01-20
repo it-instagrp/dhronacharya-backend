@@ -26,6 +26,204 @@ const isCouponApplicableForPlan = (couponApplicablePlan, planName) => {
 // ===================================================================
 // CREATE ORDER
 // ===================================================================
+// export const createOrder = async (req, res) => {
+//   const { user_id, plan_id, coupon_code, plan_name } = req.body;
+
+//   try {
+//     console.log('Create Order Request:', { user_id, plan_id, coupon_code, plan_name });
+
+//     const plan = await db.SubscriptionPlan.findByPk(plan_id);
+//     if (!plan) return res.status(404).json({ message: 'Plan not found' });
+
+//     if (plan_name && plan.plan_name !== plan_name) {
+//       return res.status(400).json({ message: 'Plan ID and Plan Name mismatch' });
+//     }
+
+//     const basePrice = parseFloat(plan.price);
+//     const actualPlanName = plan.plan_name;
+
+//     // Split 18% GST into 9% CGST and 9% SGST
+//     const cgstRate = 9;
+//     const sgstRate = 9;
+//     const cgstAmount = (basePrice * cgstRate) / 100;
+//     const sgstAmount = (basePrice * sgstRate) / 100;
+//     const totalTax = cgstAmount + sgstAmount; // This is equivalent to 18% GST
+
+//     let finalPrice = basePrice + totalTax;
+//     let appliedCoupon = null;
+//     let discountAmount = 0;
+
+//     // ----------------------------------------------------------
+//     // APPLY COUPON
+//     // ----------------------------------------------------------
+//     if (coupon_code) {
+//       const today = new Date();
+
+//       appliedCoupon = await db.Coupon.findOne({
+//         where: {
+//           code: coupon_code.toUpperCase(),
+//           is_active: true,
+//           valid_from: { [Op.lte]: today },
+//           valid_until: { [Op.gte]: today },
+//           [Op.or]: [
+//             { usage_limit: null },
+//             { usage_limit: { [Op.gt]: col('used_count') } },
+//           ],
+//         },
+//         include: [
+//           {
+//             model: db.UserCoupon,
+//             as: "UsersUsed",
+//             required: false
+//           }
+//         ]
+//       });
+
+//       if (!appliedCoupon) {
+//         return res.status(404).json({
+//           message: 'Coupon not found, expired, or usage limit reached.',
+//         });
+//       }
+
+//       // check plan
+//       if (!isCouponApplicableForPlan(appliedCoupon.applicable_plan, actualPlanName)) {
+//         return res.status(400).json({
+//           message: `Coupon ${appliedCoupon.code} not applicable for ${actualPlanName}`,
+//         });
+//       }
+
+//       // check user already used
+//       const alreadyUsed = await db.UserCoupon.findOne({
+//         where: { user_id, coupon_id: appliedCoupon.id },
+//       });
+
+//       if (alreadyUsed) {
+//         return res.status(400).json({
+//           message: 'You have already used this coupon.',
+//           coupon_code: appliedCoupon.code,
+//         });
+//       }
+
+//       // SPECIAL COUPON HANDLING
+//       let validationError = null;
+
+//       if (appliedCoupon.coupon_type === 'promotional') {
+//         const usedPromotional = await db.UserCoupon.findOne({
+//           include: [{
+//             model: db.Coupon,
+//             as: "Coupon",
+//             where: { coupon_type: 'promotional' }
+//           }],
+//           where: { user_id }
+//         });
+
+//         if (usedPromotional) {
+//           validationError = 'You have already used a promotional coupon.';
+//         }
+//       }
+
+//       if (validationError) {
+//         return res.status(400).json({ message: validationError });
+//       }
+
+//       // prevent pending duplicate
+//       const pending = await db.Payment.findOne({
+//         where: {
+//           user_id,
+//           coupon_code: appliedCoupon.code,
+//           status: 'created'
+//         }
+//       });
+
+//       if (pending) {
+//         return res.status(400).json({
+//           message: 'You already applied this coupon in a pending order.',
+//         });
+//       }
+
+//       // ---------------------------------------
+//       // APPLY DISCOUNT (industry standard)
+//       // ---------------------------------------
+//       // Apply discount on the total price (base + tax)
+//       if (appliedCoupon.discount_type === 'percentage') {
+//         discountAmount = (finalPrice * appliedCoupon.discount_value) / 100;
+//       } else {
+//         discountAmount = appliedCoupon.discount_value;
+//       }
+
+//       discountAmount = Math.round(discountAmount * 100) / 100;
+
+//       // apply discount
+//       finalPrice -= discountAmount;
+
+//       // Prevent negative or zero – Razorpay requires minimum ₹1
+//       if (finalPrice <= 0) {
+//         finalPrice = 1;
+
+//         // adjust actual discount
+//         discountAmount = basePrice + totalTax - 1;
+//       }
+//     }
+
+//     const amount = Math.round(finalPrice * 100); // convert to paise
+
+//     const receipt = `rcpt_${Date.now()}_${user_id.slice(0, 6)}`.slice(0, 40);
+
+//     const order = await razorpay.orders.create({
+//       amount,
+//       currency: 'INR',
+//       receipt,
+//     });
+
+//     // Store CGST/SGST details in payment_gateway_response JSON
+//     const taxDetails = {
+//       cgst_percentage: cgstRate,
+//       cgst_amount: cgstAmount,
+//       sgst_percentage: sgstRate,
+//       sgst_amount: sgstAmount,
+//       total_tax: totalTax,
+//     };
+
+//     // SAVE PAYMENT - store CGST/SGST in payment_gateway_response
+//     const payment = await db.Payment.create({
+//       user_id,
+//       plan_id,
+//       razorpay_order_id: order.id,
+//       base_amount: basePrice,
+//       tax_percentage: 18, // Keep old field for compatibility (total GST)
+//       tax_amount: totalTax, // Keep old field for compatibility
+//       amount: finalPrice,
+//       discount_amount: discountAmount,
+//       coupon_code: appliedCoupon ? appliedCoupon.code : null,
+//       coupon_type: appliedCoupon ? appliedCoupon.coupon_type : null,
+//       currency: 'INR',
+//       status: 'created',
+//       payment_gateway_response: taxDetails, // Store CGST/SGST details here
+//     });
+
+//     return res.json({
+//       order_id: order.id,
+//       base_amount: basePrice,
+//       cgst_percentage: cgstRate,
+//       cgst_amount: cgstAmount,
+//       sgst_percentage: sgstRate,
+//       sgst_amount: sgstAmount,
+//       total_tax: totalTax,
+//       discount_amount: discountAmount,
+//       coupon_code: appliedCoupon ? appliedCoupon.code : null,
+//       coupon_type: appliedCoupon ? appliedCoupon.coupon_type : null,
+//       applied_to_plan: actualPlanName,
+//       total_amount: finalPrice,
+//       currency: 'INR',
+//       payment_id: payment.id,
+//     });
+
+//   } catch (err) {
+//     console.error("Error in createOrder:", err);
+//     return res.status(500).json({ message: "Error creating order", error: err.message });
+//   }
+// };
+
 export const createOrder = async (req, res) => {
   const { user_id, plan_id, coupon_code, plan_name } = req.body;
 
@@ -47,14 +245,14 @@ export const createOrder = async (req, res) => {
     const sgstRate = 9;
     const cgstAmount = (basePrice * cgstRate) / 100;
     const sgstAmount = (basePrice * sgstRate) / 100;
-    const totalTax = cgstAmount + sgstAmount; // This is equivalent to 18% GST
+    const totalTax = cgstAmount + sgstAmount;
 
     let finalPrice = basePrice + totalTax;
     let appliedCoupon = null;
     let discountAmount = 0;
 
     // ----------------------------------------------------------
-    // APPLY COUPON
+    // APPLY COUPON WITH TYPE-SPECIFIC VALIDATIONS
     // ----------------------------------------------------------
     if (coupon_code) {
       const today = new Date();
@@ -85,14 +283,19 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // check plan
+      // =====================================================
+      // COUPON TYPE-SPECIFIC VALIDATIONS
+      // =====================================================
+      let validationError = null;
+
+      // 1. PLAN APPLICABILITY CHECK (for all coupon types)
       if (!isCouponApplicableForPlan(appliedCoupon.applicable_plan, actualPlanName)) {
         return res.status(400).json({
           message: `Coupon ${appliedCoupon.code} not applicable for ${actualPlanName}`,
         });
       }
 
-      // check user already used
+      // 2. CHECK IF USER ALREADY USED THIS SPECIFIC COUPON
       const alreadyUsed = await db.UserCoupon.findOne({
         where: { user_id, coupon_id: appliedCoupon.id },
       });
@@ -104,10 +307,9 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // SPECIAL COUPON HANDLING
-      let validationError = null;
-
+      // 3. PROMOTIONAL COUPON VALIDATIONS
       if (appliedCoupon.coupon_type === 'promotional') {
+        // a. Check if user already used ANY promotional coupon
         const usedPromotional = await db.UserCoupon.findOne({
           include: [{
             model: db.Coupon,
@@ -120,13 +322,115 @@ export const createOrder = async (req, res) => {
         if (usedPromotional) {
           validationError = 'You have already used a promotional coupon.';
         }
+
+        // b. Check if it's a new user (first purchase)
+        const hasPreviousPayment = await db.Payment.findOne({
+          where: {
+            user_id,
+            status: 'paid'
+          }
+        });
+
+        if (hasPreviousPayment) {
+          // Check if promotional coupon is only for first purchase
+          const isFirstPurchaseOnly = appliedCoupon.description?.includes('first-purchase') || 
+                                     appliedCoupon.code.includes('WELCOME');
+          
+          if (isFirstPurchaseOnly) {
+            validationError = 'This promotional coupon is only for first-time purchases.';
+          }
+        }
+
+        // c. Check time sensitivity (48-hour expiry for welcome coupons)
+        const couponAge = today - new Date(appliedCoupon.valid_from);
+        const hoursSinceActivation = couponAge / (1000 * 60 * 60);
+        
+        if (appliedCoupon.code.includes('WELCOME') && hoursSinceActivation > 48) {
+          validationError = 'This welcome coupon has expired (valid for 48 hours only).';
+        }
+      }
+
+      // 4. REFERRAL COUPON VALIDATIONS (SIMPLIFIED - No referral_code field needed)
+      if (appliedCoupon.coupon_type === 'referral') {
+        // Simplified referral validation - just check if coupon exists and is active
+        // You can enhance this later if you add referral tracking
+        console.log(`Referral coupon ${appliedCoupon.code} applied by user ${user_id}`);
+        
+        // Optional: Check if this is a self-referral by looking at coupon usage patterns
+        // For now, we'll just log it
+      }
+
+      // 5. RETENTION COUPON VALIDATIONS (SIMPLIFIED - No cancelled_at field needed)
+      if (appliedCoupon.coupon_type === 'retention') {
+        console.log('Checking retention coupon eligibility...');
+        
+        // a. Check if user has an active subscription
+        const activeSubscription = await db.UserSubscription.findOne({
+          where: { 
+            user_id, 
+            is_active: true,
+          },
+          order: [['end_date', 'DESC']],
+        });
+
+        // b. If no active subscription, check for ANY past subscriptions
+        if (!activeSubscription) {
+          const anyPastSubscription = await db.UserSubscription.findOne({
+            where: { 
+              user_id,
+              is_active: false,
+            },
+            order: [['end_date', 'DESC']],
+          });
+
+          if (!anyPastSubscription) {
+            // User has never subscribed before
+            validationError = 'Retention coupons are only for existing or former subscribers.';
+          } else {
+            // Check if the last subscription ended recently (within 30 days)
+            const daysSinceExpiry = Math.floor((today - new Date(anyPastSubscription.end_date)) / (1000 * 60 * 60 * 24));
+            
+            if (daysSinceExpiry > 30) {
+              validationError = 'Your last subscription expired more than 30 days ago. Retention coupons are for recent subscribers only.';
+            }
+          }
+        } else {
+          // c. If active subscription exists, check if it's expiring soon (within 15 days)
+          const daysUntilExpiry = Math.ceil((new Date(activeSubscription.end_date) - today) / (1000 * 60 * 60 * 24));
+          
+          if (daysUntilExpiry > 15) {
+            validationError = 'Retention coupons are only for subscriptions expiring within 15 days.';
+          } else if (daysUntilExpiry <= 0) {
+            validationError = 'Your subscription has already expired.';
+          }
+        }
+        
+        console.log('Retention coupon check completed');
+      }
+
+      // 6. GLOBAL COUPON VALIDATIONS
+      if (appliedCoupon.coupon_type === 'global') {
+        // a. Check if global coupon can be combined with other discounts
+        const hasOtherCoupon = await db.Payment.findOne({
+          where: {
+            user_id,
+            coupon_code: { [Op.not]: null },
+            status: 'paid',
+            created_at: { [Op.gte]: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000) }
+          }
+        });
+
+        // Example: Global coupons cannot be used if user used another coupon recently
+        if (hasOtherCoupon && appliedCoupon.description?.includes('no-combine')) {
+          validationError = 'This global coupon cannot be combined with other offers.';
+        }
       }
 
       if (validationError) {
         return res.status(400).json({ message: validationError });
       }
 
-      // prevent pending duplicate
+      // 7. PREVENT DUPLICATE PENDING ORDERS WITH SAME COUPON
       const pending = await db.Payment.findOne({
         where: {
           user_id,
@@ -141,11 +445,11 @@ export const createOrder = async (req, res) => {
         });
       }
 
-      // ---------------------------------------
-      // APPLY DISCOUNT (industry standard)
-      // ---------------------------------------
-      // Apply discount on the total price (base + tax)
+      // -------------------------------------------------------
+      // APPLY DISCOUNT
+      // -------------------------------------------------------
       if (appliedCoupon.discount_type === 'percentage') {
+        // Apply discount on the total price (base + tax)
         discountAmount = (finalPrice * appliedCoupon.discount_value) / 100;
       } else {
         discountAmount = appliedCoupon.discount_value;
@@ -153,18 +457,19 @@ export const createOrder = async (req, res) => {
 
       discountAmount = Math.round(discountAmount * 100) / 100;
 
-      // apply discount
+      // Apply discount
       finalPrice -= discountAmount;
 
       // Prevent negative or zero – Razorpay requires minimum ₹1
       if (finalPrice <= 0) {
         finalPrice = 1;
-
-        // adjust actual discount
         discountAmount = basePrice + totalTax - 1;
       }
     }
 
+    // =====================================================
+    // CREATE RAZORPAY ORDER
+    // =====================================================
     const amount = Math.round(finalPrice * 100); // convert to paise
 
     const receipt = `rcpt_${Date.now()}_${user_id.slice(0, 6)}`.slice(0, 40);
@@ -184,7 +489,9 @@ export const createOrder = async (req, res) => {
       total_tax: totalTax,
     };
 
-    // SAVE PAYMENT - store CGST/SGST in payment_gateway_response
+    // =====================================================
+    // SAVE PAYMENT RECORD
+    // =====================================================
     const payment = await db.Payment.create({
       user_id,
       plan_id,
@@ -201,6 +508,9 @@ export const createOrder = async (req, res) => {
       payment_gateway_response: taxDetails, // Store CGST/SGST details here
     });
 
+    // =====================================================
+    // RETURN ORDER DETAILS TO FRONTEND
+    // =====================================================
     return res.json({
       order_id: order.id,
       base_amount: basePrice,

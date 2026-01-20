@@ -14,7 +14,6 @@ const getDateRangeFilter = (start, end, column = 'created_at') => {
   return where;
 };
 
-
 export const getAnalyticsSummary = async (req, res) => {
   try {
     const subscriptions = await UserSubscription.count({
@@ -370,7 +369,7 @@ export const exportUsersPDF = async (req, res) => {
   }
 };
 
-// 📊 Get Class Attendance Chart Data (Group by Day)
+// Get Class Attendance Chart Data (Group by Day)
 export const getClassAttendanceChart = async (req, res) => {
   try {
     const { start_date, end_date } = req.query;

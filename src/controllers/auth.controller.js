@@ -761,7 +761,7 @@ export const preRegisterStudent = async (req, res) => {
     sms_alerts,
 
 
-    // 🆕 new fields
+    // new fields
     board,
     availability,
     start_timeline,

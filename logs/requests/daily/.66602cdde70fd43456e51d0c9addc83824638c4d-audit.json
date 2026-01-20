@@ -6,9 +6,20 @@
     "auditLog": "logs\\requests\\daily\\.66602cdde70fd43456e51d0c9addc83824638c4d-audit.json",
     "files": [
         {
+<<<<<<< HEAD
             "date": 1767265216317,
             "name": "logs\\requests\\daily\\2026-01-01.log",
             "hash": "8182af1e9c13d2153614efea8b8bde8854d26a40fb63a1ebf35b2ec0bf42bd71"
+=======
+            "date": 1768552649994,
+            "name": "logs\\requests\\daily\\2026-01-16.log",
+            "hash": "f4235a4c27e44a4bff40e1ff34d4be4d8d97b80e0c22aea39f4b5f55fbd16cd3"
+        },
+        {
+            "date": 1768885633571,
+            "name": "logs\\requests\\daily\\2026-01-20.log",
+            "hash": "64c74f4c3837f4b22900a08e821979f510664eb136e27af954520bd7524bc3c1"
+>>>>>>> 683fba9 (Resolved merge conflicts and optimized)
         }
     ],
     "hashType": "sha256"

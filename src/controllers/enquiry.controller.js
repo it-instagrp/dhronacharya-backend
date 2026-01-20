@@ -153,7 +153,7 @@ const isAdmin = currentUser.role === "admin" || currentUser.role === "super_admi
     const enquiries = await db.Enquiry.findAll({
       where: whereClause,
       include: [
-        // 🔹 Sender details
+        // Sender details
         {
           model: db.User,
           as: "Sender",
