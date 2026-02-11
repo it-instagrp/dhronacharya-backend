@@ -432,18 +432,18 @@ export const createOrder = async (req, res) => {
 
       // 7. PREVENT DUPLICATE PENDING ORDERS WITH SAME COUPON
       const pending = await db.Payment.findOne({
-        where: {
-          user_id,
-          coupon_code: appliedCoupon.code,
-          status: 'created'
-        }
-      });
+  where: {
+    user_id,
+    coupon_code: appliedCoupon.code,
+    status: 'created', // Only check for 'created' status, not 'cancelled'
+  }
+});
 
-      if (pending) {
-        return res.status(400).json({
-          message: 'You already applied this coupon in a pending order.',
-        });
-      }
+if (pending) {
+  return res.status(400).json({
+    message: 'You already applied this coupon in a pending order. Please complete or cancel the existing order.',
+  });
+}
 
       // -------------------------------------------------------
       // APPLY DISCOUNT
